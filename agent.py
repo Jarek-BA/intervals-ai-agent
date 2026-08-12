@@ -340,15 +340,23 @@ def generate_ai_recommendation(
     events_for_prompt = _shorten_events_for_prompt(events)
 
     prompt = f"""
-Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je detailně
-vyhodnotit mé tréninky na základě hloubkových dat z Intervals.icu.
+Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je provádět
+přísnou, objektivní a datově přesnou analýzu tréninků z Intervals.icu.
 
 **DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
 
-**MŮJ PROFIL A CÍLE:**
-- Cíl: Maraton Luzern (25. 10. 2026) – SUB 3:00 (Maratonské tempo MP: 4:12–4:18 min/km).
-- Zóny tempa: Easy Z2 = 4:52–5:24 min/km.
-- Doplňkové akce: Uster Triatlon (23. 8. 2026) & Bodensee Radmarathon (12. 9. 2026).
+**MŮJ PROFIL A HLAVNÍ CÍL:**
+- Hlavní závod: Maraton Luzern (25. 10. 2026) – cíl SUB 3:00.
+- Doplňkové akce: Uster Triatlon (23. 8. 2026) &
+  Bodensee Radmarathon (12. 9. 2026).
+
+**DEFINICE TRÉNINKOVÝCH ZÓN A TEMPA (CÍLOVÉ PROSINKY):**
+- **Recovery / Regeneration:** > 5:25 min/km (včetně
+  intervalových pauz 6:00–5:25 min/km)
+- **Easy / Z2:** 4:52 – 5:24 min/km
+- **Marathon Pace (MP):** 4:12 – 4:18 min/km
+- **Threshold / Tempo:** 3:59 – 4:06 min/km
+- **VO2max / Intervals:** 3:44 – 3:53 min/km
 
 **AKTUÁLNÍ WELLNESS DNEŠKA ({today.isoformat()}):**
 - Form (TSB): {wellness.get('form', 'N/A')}
@@ -361,37 +369,51 @@ vyhodnotit mé tréninky na základě hloubkových dat z Intervals.icu.
 
 ---
 
-**STRIKTNÍ ANALYTICKÁ PRAVIDLA:**
-1. **Dnešní datum:** Vždy vycházej z toho, že DNEŠEK je {today.isoformat()}.
-2. **Dokončené vs. Plánované:** Události "POUZE NAPLÁNOVÁNO" JEŠTĚ NEPROBĚHLY.
-3. **GAP místo Pace:** Při vyhodnocení tempa IGNORUJ standardní Pace a hodnot
-    výhradně **GAP (Grade Adjusted Pace)**.
-4. **Převýšení (Altitude/Gradient):** Zohledni klesání a stoupání, které vysvětlují
-   změny výkonu/tempa.
-5. **Heart Rate Drift & Efektivita:** Sleduj vývoj tepu (Avg HR/Max HR)
-   napříč úseky (Laps).
-   Rostoucí tep při stejném GAP znamená kardiovaskulární drift/únavu.
-   Sleduj i koeficient Power/HR a kadenci.
+**OBECNÁ ANALYTICKÁ PRAVIDLA (APLIKUJ NA VŠECHNY TRÉNINKY):**
+
+1. **Časový rámec a stav aktivit:**
+   - DNEŠEK je {today.isoformat()}.
+   - Položky označené jako "POUZE NAPLÁNOVÁNO" ještě neproběhly a
+     nikdy je nehodnoť jako odtrénované.
+   - Hodnoť výhradně položky "RÉALNĚ ODTRÉNOVÁNO".
+
+2. **Matematicky přesné vyhodnocení tempa úseků (Laps):**
+   - Vždy porovnávej předepsaný typ úseku (Warmup, Easy, MP,
+     Interval, Recovery) s odpovídající cílovou zónou definovanou výše.
+   - Pro posouzení rychlosti/tempa **používej výhradně hodnotu GAP
+     (Grade Adjusted Pace)**, nikoliv běžný Pace.
+   - Pokles či zrychlení GAP mimo předepsané rozmezí dané zóny vyhodnoť
+     jako **nedodržení tempa** s uvedením přesné odchylky v sekundách
+     na kilometr. Buď nekompromisní a data nezaokrouhluj ani neomlouvej.
+
+3. **Biomechanická a kardiovaskulární odezva:**
+   - **Heart Rate Drift:** Sleduj vývoj tepovky (Avg HR / Max HR)
+     napříč jednotlivými úseky o stejné intenzitě.
+   - **Převýšení:** Vyhodnoť profil (Elev/Gradient) pro vysvětlení dynamiky běhu.
+   - **Kadence a Efektivita:** Sleduj stabilitu kadence (spm) a poměr výkonu
+     k tepu (Efficiency Factor / Power-to-HR) v průběhu tréninku jako
+     ukazatele svalové či kardiální únavy.
 
 ---
 
-**POŽADOVANÁ STRUKTURA E-MAILU:**
+**STRUKTURA VÝSTUPU (HTML/Markdown):**
 
 ## 🏃‍♂️ Denní AI Koučink – {today.isoformat()}
 
 ### 📊 1. Stav těla a Únava (Wellness)
-- Zhodnocení TSB, CTL, ATL a RHR k dnešnímu dni.
+- Zhodnocení aktuálního TSB, CTL, ATL a RHR v kontextu přípravy.
 
-### 🎯 2. Hloubková analýza úseků (Laps Analysis)
-- Hodnocení **GAP** na jednotlivých úsecích vs. plánované tempo
-  (MP 4:12–4:18 / Easy 4:52–5:24).
-- Analýza převýšení, reakce tepové frekvence (HR drift) a stability kadence.
-- Hodnocení běžecké efektivity (Power / HR ratio).
+### 🎯 2. Analýza odtrénovaných aktivit (Laps & Biometrics)
+- Detailní rozbor odtrénovaných běhů po jednotlivých úsecích (Laps).
+- Přesné srovnání reálného **GAP** vůči příslušné definované zóně
+  (např. MP, Easy, VO2max).
+- Hodnocení HR driftu, kadence a běžecké efektivity.
 
 ### 📋 3. Verdikt a doporučení pro DNEŠNÍ DEN ({today.isoformat()})
-- Konkrétní pokyn pro dnešní trénink na základě včerejšího zatažení a aktuálního TSB.
+- Jasné a konkrétní doporučení pro dnešek na základě aktuální únavy (TSB)
+a odtrénované zátěže.
 
-Buď konkrétní, pracuj s přesnými čísly z kol a piš v češtině.
+Piš věcně, pracuj s přesnými čísly z dat a piš v češtině.
 """
 
     try:
