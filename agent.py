@@ -219,7 +219,7 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     start_date = today - datetime.timedelta(days=10)
     end_date = today + datetime.timedelta(days=2)
 
-    # 1. Wellness data
+    # 1. Wellness
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/"
         f"wellness/{today.isoformat()}"
@@ -227,42 +227,43 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     res_wellness = safe_get(wellness_url)
     wellness_data = safe_json(res_wellness) or {}
 
-    # 2. Kalendářové události (plán + odtrénované akce)
+    # 2. Kalendář (Events / Planned Workouts)
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
     params = {"oldest": start_date.isoformat(), "newest": end_date.isoformat()}
     res_events = safe_get(events_url, params=params)
     events_data = safe_json(res_events) or []
 
-    if not isinstance(events_data, list):
-        return wellness_data, []
+    # 3. Odtrénované aktivity (Reálná GPS/HR data)
+    activities_url = (
+        f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities"
+    )
+    res_act = safe_get(activities_url, params=params)
+    activities_list = safe_json(res_act) or []
 
-    # 3. Načtení detailních metrik pro odtrénované aktivity
     enriched_events = []
-    for event in events_data:
-        if not isinstance(event, dict):
-            continue
 
-        # Zjistíme ID odtrénované aktivity (pokud existuje)
-        activity_id = event.get("activity_id") or (
-            event.get("id") if event.get("type") == "Activity" else None
-        )
+    # Nejprve přidáme plně stažené odtrénované aktivity s úseky (Laps)
+    if isinstance(activities_list, list):
+        for act in activities_list:
+            if not isinstance(act, dict):
+                continue
+            act_id = act.get("id")
+            if act_id:
+                # Stáhneme detail aktivity s tabulkou Laps
+                single_act_url = (
+                    f"https://intervals.icu/api/v1/activity/{act_id}"
+                )
+                res_single = safe_get(single_act_url)
+                single_data = safe_json(res_single)
+                if isinstance(single_data, dict):
+                    single_data["is_completed_activity"] = True
+                    enriched_events.append(single_data)
 
-        if activity_id:
-            # Stáhneme plná data aktivity (obsahuje Avg/Max HR, GAP, Efficiency,
-            # Power, Cadence...)
-            act_url = f"https://intervals.icu/api/v1/activity/{activity_id}"
-            res_act = safe_get(act_url)
-            act_details = safe_json(res_act)
-
-            if isinstance(act_details, dict):
-                # Sloučíme event s plnými detaily aktivity
-                merged_event = {**event, **act_details}
-                enriched_events.append(merged_event)
-            else:
-                enriched_events.append(event)
-        else:
-            # Jedná se pouze o naplánovaný trénink (Workout / Event)
-            enriched_events.append(event)
+    # Přidáme plánované eventy, které ještě nemají odpovídající aktivitu
+    if isinstance(events_data, list):
+        for ev in events_data:
+            if isinstance(ev, dict) and ev.get("type") != "Activity":
+                enriched_events.append(ev)
 
     return wellness_data, enriched_events
 
@@ -274,15 +275,17 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
         if not isinstance(e, dict):
             continue
 
-        start_date = e.get("start_date_local", "")[:10]
+        start_date = (
+            e.get("start_date_local") or e.get("start_date") or ""
+        )[:10]
         name = e.get("name", "Bez názvu")
         category = e.get("category") or e.get("type", "")
 
-        is_completed = bool(
-            e.get("activity_id") or e.get("type") == "Activity"
+        is_completed = e.get("is_completed_activity", False) or (
+            e.get("type") == "Activity"
         )
         status_str = (
-            "✅ ODTRÉNOVÁNO"
+            "✅ REALNĚ ODTRÉNOVÁNO (MÁŠ REÁLNÁ DATA)"
             if is_completed
             else "📅 POUZE NAPLÁNOVÁNO (NEPROBĚHLO)"
         )
@@ -295,35 +298,31 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
             avg_hr = e.get("average_heartrate", "N/A")
             max_hr = e.get("max_heartrate", "N/A")
             avg_watts = e.get("icu_average_watts", "N/A")
-            ef = e.get("efficiency_factor", "N/A")
 
             line += (
                 f"\n   -> Celkem: {dist:.2f} km | Čas: {moving_time} min | "
                 f"Avg HR: {avg_hr} bpm | Max HR: {max_hr} bpm | "
-                f"Avg Power: {avg_watts} W | Efficiency Factor: {ef}"
+                f"Avg Power: {avg_watts} W"
             )
 
-            # Detailní rozbor kol (Laps)
+            # Laps / Kola
             laps = e.get("icu_lap_outlines") or e.get("laps")
             if laps and isinstance(laps, list):
                 line += "\n   -> Detailní úseky/kola (Laps):"
                 for idx, lap in enumerate(laps, 1):
                     lap_dist = lap.get("distance", 0) / 1000.0
                     gap = lap.get("gap") or lap.get("pace", "N/A")
-                    alt = lap.get("total_elevation_gain", lap.get("altitude_gain", 0))
-                    grad = lap.get("avg_gradient", 0)
+                    alt = lap.get(
+                        "total_elevation_gain", lap.get("altitude_gain", 0)
+                    )
                     cadence = lap.get("average_cadence", "N/A")
                     l_hr = lap.get("average_heartrate", "N/A")
                     l_max_hr = lap.get("max_heartrate", "N/A")
-                    l_power = lap.get("average_watts", "N/A")
-                    ef_val = lap.get("efficiency_factor", "N/A")
-                    p_hr = lap.get("power_hr_ratio", ef_val)
 
                     line += (
                         f"\n      Lap {idx}: {lap_dist:.2f}km | GAP: {gap} | "
-                        f"Elev: +{alt}m ({grad:.1f}%) | Cadence: {cadence} spm | "
-                        f"HR: {l_hr} (Max {l_max_hr}) bpm | Power: {l_power}W | "
-                        f"P/HR: {p_hr}"
+                        f"Elev: +{alt}m | Cadence: {cadence} spm | "
+                        f"HR: {l_hr} (Max {l_max_hr}) bpm"
                     )
 
         formatted_lines.append(line)
