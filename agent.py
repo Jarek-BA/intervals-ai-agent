@@ -3,11 +3,13 @@ import json
 import logging
 import os
 import smtplib
+import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-import markdown  # <-- Přidáno nahoru k ostatním importům
+import markdown
+import requests
 from google import genai
 
 # Basic config
