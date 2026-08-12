@@ -26,4 +26,4 @@ jobs:
       - name: Lint
         run: flake8 .
       - name: Run tests
-        run: pytest -q
+        run: PYTHONPATH=. pytest -q
