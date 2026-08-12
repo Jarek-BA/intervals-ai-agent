@@ -1,18 +1,34 @@
 import datetime
 import json
 import os
+from typing import Dict, Optional, Tuple
 from google import genai
 import requests
 
-# --- 1. KONFIGURACE Z PROSTŘEDÍ ---
+
+# --- 1. HELPER PRO AUTORIZACI INTERVALS.ICU ---
+def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, str]]]:
+    """Return (headers_dict or None, auth_tuple or None).
+
+    If INTERVALS_USE_BASIC_AUTH is set in env, return auth tuple,
+    otherwise return Authorization header.
+    NOTE: Read the env var at call time so tests and runtime
+    monkeypatching work correctly.
+    """
+    intervals_key = os.environ.get("INTERVALS_API_KEY")
+    if os.environ.get("INTERVALS_USE_BASIC_AUTH"):
+        return None, ("API_KEY", intervals_key)
+    if intervals_key:
+        return {"Authorization": f"Bearer {intervals_key}"}, None
+    return None, None
+
+
+# --- 2. KONFIGURACE Z PROSTŘEDÍ ---
 ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID", "i510990")
-INTERVALS_API_KEY = os.environ.get("INTERVALS_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-AUTH = ("API_KEY", INTERVALS_API_KEY)
 
-
-# --- 2. SYNCHRONIZACE TRÉNINKOVÉHO PLÁNU DO INTERVALS.ICU ---
+# --- 3. SYNCHRONIZACE TRÉNINKOVÉHO PLÁNU DO INTERVALS.ICU ---
 def sync_plan_from_file(filename="plan.json"):
     if not os.path.exists(filename):
         print(f"⚠️ Soubor {filename} nenalezen, přeskakuji synchronizaci.")
@@ -32,7 +48,8 @@ def sync_plan_from_file(filename="plan.json"):
     url_events = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
     params = {"oldest": min_date, "newest": max_date}
 
-    res = requests.get(url_events, auth=AUTH, params=params)
+    headers, auth = get_request_auth()
+    res = requests.get(url_events, headers=headers, auth=auth, params=params)
     existing_events = res.json() if res.status_code == 200 else []
 
     existing_keys = {
@@ -54,7 +71,9 @@ def sync_plan_from_file(filename="plan.json"):
                 "description": workout_text,
                 "workout_doc": {"description": workout_text},
             }
-            res_post = requests.post(url_events, auth=AUTH, json=payload)
+            res_post = requests.post(
+                url_events, headers=headers, auth=auth, json=payload
+            )
             if res_post.status_code in (200, 201):
                 print(f"✅ Nahraný nový trénink na {item_date}: {item['name']}")
             else:
@@ -69,30 +88,34 @@ def sync_plan_from_file(filename="plan.json"):
             )
 
 
-# --- 3. ZÍSKÁNÍ DAT Z INTERVALS.ICU ---
+# --- 4. ZÍSKÁNÍ DAT Z INTERVALS.ICU ---
 def get_intervals_data():
     today = datetime.date.today()
     start_date = today - datetime.timedelta(days=10)
     end_date = today + datetime.timedelta(days=2)
 
+    headers, auth = get_request_auth()
+
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/"
         f"wellness/{today.isoformat()}"
     )
-    res_wellness = requests.get(wellness_url, auth=AUTH)
+    res_wellness = requests.get(wellness_url, headers=headers, auth=auth)
     wellness_data = (
         res_wellness.json() if res_wellness.status_code == 200 else {}
     )
 
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
     params = {"oldest": start_date.isoformat(), "newest": end_date.isoformat()}
-    res_events = requests.get(events_url, auth=AUTH, params=params)
+    res_events = requests.get(
+        events_url, headers=headers, auth=auth, params=params
+    )
     events_data = res_events.json() if res_events.status_code == 200 else []
 
     return wellness_data, events_data
 
 
-# --- 4. GENEROVÁNÍ DOPORUČENÍ POMOCÍ GEMINI AI ---
+# --- 5. GENEROVÁNÍ DOPORUČENÍ POMOCÍ GEMINI AI ---
 def generate_ai_recommendation(wellness, events):
     client = genai.Client(api_key=GEMINI_API_KEY)
 
