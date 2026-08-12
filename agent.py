@@ -306,25 +306,47 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                 f"Avg Power: {avg_watts} W"
             )
 
-            # Laps / Kola
-            laps = e.get("icu_lap_outlines") or e.get("laps")
-            if laps and isinstance(laps, list):
-                line += "\n   -> Detailní úseky/kola (Laps):"
+            # --- EXTRAKCE LAPS (ÚSEKŮ) ---
+            # Intervals.icu používá 'icu_lap_outlines' nebo 'laps'
+            laps = e.get("icu_lap_outlines") or e.get("laps") or []
+
+            if isinstance(laps, list) and len(laps) > 0:
+                line += "\n   -> DETAILNÍ ÚSEKY / KOLA (LAPS):"
                 for idx, lap in enumerate(laps, 1):
+                    if not isinstance(lap, dict):
+                        continue
+
+                    # Vzdálenost kola
                     lap_dist = lap.get("distance", 0) / 1000.0
-                    gap = lap.get("gap") or lap.get("pace", "N/A")
-                    alt = lap.get(
-                        "total_elevation_gain", lap.get("altitude_gain", 0)
-                    )
+
+                    # Výpočet tempa / GAP pro kolo
+                    lap_moving = lap.get("moving_time") or lap.get("elapsed_time") or 0
+                    if lap_dist > 0 and lap_moving > 0:
+                        pace_seconds = lap_moving / lap_dist
+                        mins = int(pace_seconds // 60)
+                        secs = int(pace_seconds % 60)
+                        pace_str = f"{mins}:{secs:02d} min/km"
+                    else:
+                        pace_str = "N/A"
+
+                    # Pokud je k dispozici přímo hodnota GAP z Intervals.icu
+                    gap = lap.get("gap")
+                    gap_str = f"{gap}" if gap else pace_str
+
+                    alt = lap.get("total_elevation_gain", lap.get("altitude_gain", 0))
                     cadence = lap.get("average_cadence", "N/A")
                     l_hr = lap.get("average_heartrate", "N/A")
                     l_max_hr = lap.get("max_heartrate", "N/A")
 
                     line += (
-                        f"\n      Lap {idx}: {lap_dist:.2f}km | GAP: {gap} | "
-                        f"Elev: +{alt}m | Cadence: {cadence} spm | "
-                        f"HR: {l_hr} (Max {l_max_hr}) bpm"
+                        f"\n      * Lap {idx} ({lap_dist:.2f} km): "
+                        f"GAP/Tempo: {gap_str} | "
+                        f"HR: {l_hr} (Max {l_max_hr}) bpm | "
+                        f"Kadence: {cadence} spm | "
+                        f"Převýšení: +{alt}m"
                     )
+            else:
+                line += "\n   -> Detailní úseky (Laps) nebyly v datech nalezeny."
 
         formatted_lines.append(line)
 
@@ -413,6 +435,8 @@ přísnou, objektivní a datově přesnou analýzu tréninků z Intervals.icu.
 - Jasné a konkrétní doporučení pro dnešek na základě aktuální únavy (TSB)
 a odtrénované zátěže.
 
+Nikdy nepoužívej LaTeX syntaxi (žádné znaky $ nebo ~). Všechna čísla,
+jednotky a vzorce piš jako běžný text (např. "4:15 min/km" nebo "CTL - ATL").
 Piš věcně, pracuj s přesnými čísly z dat a piš v češtině.
 """
 
