@@ -1,15 +1,14 @@
-# Full hardened agent.py (replace the file contents)
 import datetime
 import json
 import logging
 import os
 import smtplib
-import sys
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
+import markdown  # <-- Přidáno nahoru k ostatním importům
 from google import genai
-import requests
 
 # Basic config
 logging.basicConfig(
@@ -412,34 +411,28 @@ Buď konkrétní, pracuj s přesnými čísly z kol a piš v češtině.
 
 
 # --- 5. SEND EMAIL ---
-import markdown
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-
-
 def send_email(subject: str, markdown_content: str) -> None:
-    # Převod Markdownu z Gemini do čistého HTML pro Outlook
     html_body = markdown.markdown(
         markdown_content, extensions=["tables", "fenced_code"]
     )
 
-    # Obalení do jednoduchého CSS pro pěkné zobrazení
-    full_html = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <div style="max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            {html_body}
-        </div>
-      </body>
-    </html>
-    """
+    full_html = (
+        "<html>\n"
+        '  <body style="font-family: Arial, sans-serif; line-height: 1.6; '
+        'color: #333;">\n'
+        '    <div style="max-width: 650px; margin: 0 auto; padding: 20px; '
+        'border: 1px solid #e0e0e0; border-radius: 8px;">\n'
+        f"        {html_body}\n"
+        "    </div>\n"
+        "  </body>\n"
+        "</html>"
+    )
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = EMAIL_SENDER
     msg["To"] = EMAIL_RECEIVER
 
-    # Připojíme jak prostý text, tak HTML verzi
     part_text = MIMEText(markdown_content, "plain", "utf-8")
     part_html = MIMEText(full_html, "html", "utf-8")
 
