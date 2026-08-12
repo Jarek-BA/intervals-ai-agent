@@ -234,7 +234,7 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     res_events = safe_get(events_url, params=params)
     events_data = safe_json(res_events) or []
 
-    # 3. Odtrénované aktivity (Reálná GPS/HR data)
+    # 3. Odtrénované aktivity
     activities_url = (
         f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities"
     )
@@ -243,24 +243,36 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
 
     enriched_events = []
 
-    # Nejprve přidáme plně stažené odtrénované aktivity s úseky (Laps)
     if isinstance(activities_list, list):
         for act in activities_list:
             if not isinstance(act, dict):
                 continue
             act_id = act.get("id")
             if act_id:
-                # Stáhneme detail aktivity s tabulkou Laps
+                # Stáhneme detail aktivity
                 single_act_url = (
                     f"https://intervals.icu/api/v1/activity/{act_id}"
                 )
                 res_single = safe_get(single_act_url)
                 single_data = safe_json(res_single)
+
                 if isinstance(single_data, dict):
+                    # KROK NAVÍC: Stáhneme přímo tabulku úseků / intervalů (Laps)
+                    intervals_url = (
+                        f"https://intervals.icu/api/v1/activity/{act_id}/intervals"
+                    )
+                    res_intervals = safe_get(intervals_url)
+                    intervals_data = safe_json(res_intervals)
+
+                    # Pokud API vrátilo pole intervalů, uložíme ho do objektu
+                    if isinstance(intervals_data, list):
+                        single_data["icu_intervals"] = intervals_data
+                    elif isinstance(intervals_data, dict) and "intervals" in intervals_data:
+                        single_data["icu_intervals"] = intervals_data["intervals"]
+
                     single_data["is_completed_activity"] = True
                     enriched_events.append(single_data)
 
-    # Přidáme plánované eventy, které ještě nemají odpovídající aktivitu
     if isinstance(events_data, list):
         for ev in events_data:
             if isinstance(ev, dict) and ev.get("type") != "Activity":
@@ -306,9 +318,14 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                 f"Avg Power: {avg_watts} W"
             )
 
-            # --- EXTRAKCE LAPS (ÚSEKŮ) ---
-            # Intervals.icu používá 'icu_lap_outlines' nebo 'laps'
-            laps = e.get("icu_lap_outlines") or e.get("laps") or []
+            # Prohledáme všechny možné klíče, kde se v Intervals.icu schovávají úseky
+            laps = (
+                e.get("icu_intervals")
+                or e.get("intervals")
+                or e.get("icu_lap_outlines")
+                or e.get("laps")
+                or []
+            )
 
             if isinstance(laps, list) and len(laps) > 0:
                 line += "\n   -> DETAILNÍ ÚSEKY / KOLA (LAPS):"
@@ -316,11 +333,9 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                     if not isinstance(lap, dict):
                         continue
 
-                    # Vzdálenost kola
                     lap_dist = lap.get("distance", 0) / 1000.0
-
-                    # Výpočet tempa / GAP pro kolo
                     lap_moving = lap.get("moving_time") or lap.get("elapsed_time") or 0
+
                     if lap_dist > 0 and lap_moving > 0:
                         pace_seconds = lap_moving / lap_dist
                         mins = int(pace_seconds // 60)
@@ -329,7 +344,7 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                     else:
                         pace_str = "N/A"
 
-                    # Pokud je k dispozici přímo hodnota GAP z Intervals.icu
+                    # Hodnota GAP z Intervals.icu (pokud existuje)
                     gap = lap.get("gap")
                     gap_str = f"{gap}" if gap else pace_str
 
@@ -337,9 +352,10 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                     cadence = lap.get("average_cadence", "N/A")
                     l_hr = lap.get("average_heartrate", "N/A")
                     l_max_hr = lap.get("max_heartrate", "N/A")
+                    label = lap.get("label") or lap.get("type") or f"Lap {idx}"
 
                     line += (
-                        f"\n      * Lap {idx} ({lap_dist:.2f} km): "
+                        f"\n      * {label} ({lap_dist:.2f} km): "
                         f"GAP/Tempo: {gap_str} | "
                         f"HR: {l_hr} (Max {l_max_hr}) bpm | "
                         f"Kadence: {cadence} spm | "
