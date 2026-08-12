@@ -294,8 +294,8 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
         line = f"• [{start_date}] {name} ({category}) - {status_str}"
 
         if is_completed:
-            dist = e.get("distance", 0) / 1000.0
-            moving_time = e.get("moving_time", 0) // 60
+            dist = (e.get("distance") or 0) / 1000.0
+            moving_time = (e.get("moving_time") or 0) // 60
             avg_hr = e.get("average_heartrate", "N/A")
             max_hr = e.get("max_heartrate", "N/A")
             avg_watts = e.get("icu_average_watts", "N/A")
@@ -320,9 +320,21 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                     if not isinstance(lap, dict):
                         continue
 
-                    lap_dist = lap.get("distance", 0) / 1000.0
+                    # Bezpečné ošetření None prvků
+                    raw_dist = lap.get("distance")
+                    lap_dist = (
+                        (float(raw_dist) / 1000.0)
+                        if raw_dist is not None
+                        else 0.0
+                    )
+
+                    raw_moving = (
+                        lap.get("moving_time") or lap.get("elapsed_time")
+                    )
                     lap_moving = (
-                        lap.get("moving_time") or lap.get("elapsed_time") or 0
+                        float(raw_moving)
+                        if raw_moving is not None
+                        else 0.0
                     )
 
                     if lap_dist > 0 and lap_moving > 0:
@@ -333,7 +345,7 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                     else:
                         pace_str = "N/A"
 
-                    # Hodnota GAP z Intervals.icu (pokud neexistuje, použije se tempo)
+                    # Hodnota GAP z Intervals.icu
                     gap = lap.get("gap")
                     gap_str = f"{gap}" if gap else pace_str
 
