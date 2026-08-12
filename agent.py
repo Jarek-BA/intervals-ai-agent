@@ -35,11 +35,15 @@ def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, st
     """
     Return (headers_dict or None, auth_tuple or None).
     If INTERVALS_USE_BASIC_AUTH is set in env, return auth tuple, otherwise return Authorization header.
+
+    NOTE: Read the env var at call time so tests and runtime monkeypatching work correctly.
     """
+    intervals_key = os.environ.get("INTERVALS_API_KEY")
     if os.environ.get("INTERVALS_USE_BASIC_AUTH"):
-        return None, BASIC_AUTH_TUPLE
-    if INTERVALS_API_KEY:
-        return {"Authorization": f"Bearer {INTERVALS_API_KEY}"}, None
+        # Build the basic-auth tuple at call time so it uses the current env value
+        return None, ("API_KEY", intervals_key)
+    if intervals_key:
+        return {"Authorization": f"Bearer {intervals_key}"}, None
     return None, None
 
 
