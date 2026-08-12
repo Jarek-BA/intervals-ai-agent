@@ -4,7 +4,7 @@ import datetime
 import smtplib
 from email.mime.text import MIMEText
 import requests
-import google.generativeai as genai
+from google import genai
 
 # --- 1. KONFIGURACE Z PROSTŘEDÍ ---
 ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID", "i510990")
@@ -52,9 +52,11 @@ def sync_plan_from_file(filename="plan.json"):
         event_key = f"{item_date}_{item['name']}"
         
         if event_key not in existing_keys:
+            # KLÍČOVÁ OPRAVA: Přidáno "category": "WORKOUT"
             payload = {
                 "start_date_local": f"{item_date}T07:00:00",
                 "type": item["type"],
+                "category": "WORKOUT",
                 "name": item["name"],
                 "description": item["description"]
             }
@@ -87,8 +89,8 @@ def get_intervals_data():
 
 # --- 4. GENEROVÁNÍ DOPORUČENÍ POMOCÍ GEMINI AI ---
 def generate_ai_recommendation(wellness, events):
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Nové oficiální SDK
+    client = genai.Client(api_key=GEMINI_API_KEY)
     
     prompt = f"""
     Jsi můj osobní vytrvalostní tréninkový AI kouč.
@@ -117,7 +119,10 @@ def generate_ai_recommendation(wellness, events):
     4. Buď stručný, věcný, motivující a piš v češtině.
     """
     
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
     return response.text
 
 # --- 5. ODESLÁNÍ E-MAILU ---
