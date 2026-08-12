@@ -166,13 +166,13 @@ def sync_plan_from_file(filename: str = "plan.json") -> None:
     existing_events = safe_json(res) or []
 
     existing_keys = set()
-        if isinstance(existing_events, list):
-            for e in existing_events:
-                if isinstance(e, dict):
-                    start_date = e.get("start_date_local", "")[:10]
-                    name = e.get("name", "")
-                    if start_date and name:
-                        existing_keys.add(f"{start_date}_{name}")
+    if isinstance(existing_events, list):
+        for e in existing_events:
+            if isinstance(e, dict):
+                start_date = e.get("start_date_local", "")[:10]
+                name = e.get("name", "")
+                if start_date and name:
+                    existing_keys.add(f"{start_date}_{name}")
 
     for item in planned_items:
         item_date = item.get("date")
