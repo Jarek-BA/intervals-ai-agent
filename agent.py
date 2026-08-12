@@ -281,22 +281,14 @@ Jsi můj osobní vytrvalostní tréninkový AI kouč.
 """
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash", contents=prompt
+        interaction = client.interactions.create(
+            model="gemini-3.5-flash",
+            input=prompt
         )
+        text = interaction.output_text
     except Exception as e:
         logger.exception("Gemini API request failed: %s", e)
         raise RuntimeError(f"Gemini API error: {e}")
-
-    # Safe extraction of text
-    text = None
-    for attr in ("text", "output", "content", "result"):
-        text = getattr(response, attr, None)
-        if text:
-            break
-    if text is None:
-        # Fallback to str() representation
-        text = str(response)
 
     if not isinstance(text, str):
         try:
