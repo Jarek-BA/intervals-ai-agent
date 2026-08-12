@@ -248,7 +248,7 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         )
 
         if activity_id:
-            # Stáhneme plná data aktivity (obsahuje Avg/Max HR, GAP, Efficiency, 
+            # Stáhneme plná data aktivity (obsahuje Avg/Max HR, GAP, Efficiency,
             # Power, Cadence...)
             act_url = f"https://intervals.icu/api/v1/activity/{activity_id}"
             res_act = safe_get(act_url)
