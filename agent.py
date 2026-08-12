@@ -219,19 +219,51 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     start_date = today - datetime.timedelta(days=10)
     end_date = today + datetime.timedelta(days=2)
 
+    # 1. Wellness data
     wellness_url = (
-            f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/"
-            f"wellness/{today.isoformat()}"
+        f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/"
+        f"wellness/{today.isoformat()}"
     )
     res_wellness = safe_get(wellness_url)
     wellness_data = safe_json(res_wellness) or {}
 
+    # 2. Kalendářové události (plán + odtrénované akce)
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
     params = {"oldest": start_date.isoformat(), "newest": end_date.isoformat()}
     res_events = safe_get(events_url, params=params)
     events_data = safe_json(res_events) or []
 
-    return wellness_data, events_data
+    if not isinstance(events_data, list):
+        return wellness_data, []
+
+    # 3. Načtení detailních metrik pro odtrénované aktivity
+    enriched_events = []
+    for event in events_data:
+        if not isinstance(event, dict):
+            continue
+
+        # Zjistíme ID odtrénované aktivity (pokud existuje)
+        activity_id = event.get("activity_id") or (
+            event.get("id") if event.get("type") == "Activity" else None
+        )
+
+        if activity_id:
+            # Stáhneme plná data aktivity (obsahuje Avg/Max HR, GAP, Efficiency, Power, Cadence...)
+            act_url = f"https://intervals.icu/api/v1/activity/{activity_id}"
+            res_act = safe_get(act_url)
+            act_details = safe_json(res_act)
+
+            if isinstance(act_details, dict):
+                # Sloučíme event s plnými detaily aktivity
+                merged_event = {**event, **act_details}
+                enriched_events.append(merged_event)
+            else:
+                enriched_events.append(event)
+        else:
+            # Jedná se pouze o naplánovaný trénink (Workout / Event)
+            enriched_events.append(event)
+
+    return wellness_data, enriched_events
 
 
 # --- 4. GENERATE AI RECOMMENDATION ---
@@ -253,31 +285,35 @@ def generate_ai_recommendation(
 
     events_for_prompt = _shorten_events_for_prompt(events)
 
-    prompt = f"""
-Jsi můj osobní vytrvalostní tréninkový AI kouč.
+prompt = f"""
+Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je detailně vyhodnotit mé tréninky na základě hloubkových dat z Intervals.icu.
 
-**Můj kontext:**
-- Hlavní cíl: Maraton Luzern (25. 10. 2026) – cíl SUB 3:00 (MP: 4:12–4:18 min/km).
-- Doplňkové akce:
-  * Uster Triatlon (23. 8. 2026 – 1.5 km OWS <30m / 10 km RUN <40m / tempo 4:00 min/km)
-  * Bodensee Radmarathon (12. 9. 2026 – 220 km na kole v Z2 jako objem na Ironmana)
-- Tréninková filozofie: Ben Parkes Level 4 (vysoký objem, Easy Z2: 4:52–5:24 min/km).
-- Priorita: Běh má 100% prioritu. Kolo a plavání jsou doplňkový cross-training.
+**Můj profil a hlavní cíl:**
+- Cíl: Maraton Luzern (25. 10. 2026) – SUB 3:00 (Maratonské tempo / MP: 4:12–4:18 min/km).
+- Doplňkové akce: Uster Triatlon (23. 8. 2026) & Bodensee Radmarathon (12. 9. 2026).
+- Zóny tempa: Easy / Z2 = 4:52–5:24 min/km. MP = 4:12–4:18 min/km.
 
-**Aktuální data z mého účtu Intervals.icu (k dnešnímu dni):**
-- Form / TSB (Čerstvost/Únava): {wellness.get('form', 'N/A')}
-- Fitness / CTL: {wellness.get('ctl', 'N/A')}
-- Fatigue / ATL: {wellness.get('atl', 'N/A')}
+**Aktuální stav těla (Wellness):**
+- Form (TSB): {wellness.get('form', 'N/A')}
+- Fitness (CTL): {wellness.get('ctl', 'N/A')}
+- Fatigue (ATL): {wellness.get('atl', 'N/A')}
 - Klidový tep (RHR): {wellness.get('restingHR', 'N/A')}
 
-**Historie tréninků a naplánované tréninky (Posledních 10 dní + Dnes a Zítřek):**
+**Detailní data z odtrénovaných aktivit a plánu za poslední dny:**
 {events_for_prompt}
 
-**Tůj úkol:**
-1. Porovnej naplánované tréninky s reálně odtrénovanými aktivitami za poslední týden.
-2. Zhodnoť stav mé únavy (TSB/CTL/ATL) v kontextu Uster Triatlonu a maratonského cyklu.
-3. Dej mi jasné, konkrétní a strukturované doporučení pro DNEŠNÍ DEN.
-4. Buď stručný, věcný, motivující a piš v češtině.
+**Požadovaný rozbor v e-mailu:**
+1. **Předepsané tempo vs. Realita:**
+   - Zda jsem u běhu dodržel předepsané tempo (např. Easy Z2 nebo MP úseky).
+   - Porovnání reakce tepové frekvence (Avg HR, Max HR a drift tepovky v průběhu běhu).
+2. **Efektivita a Příkon (Power/HR & Cadence):**
+   - Zhodnocení Běžeckého výkonu (Watts), kadence a koeficientu efektivity (Efficiency Factor - Power/HR).
+3. **Párování a plnění plánu (Compliance & Load):**
+   - Vyhodnocení celkové zátěže (Load vs. Planned Load) a plnění plánu v %.
+4. **Jasný verdikt a doporučení pro DNEŠNÍ DEN:**
+   - Na základě dnešního stavu únavy (TSB/ATL) a včerejšího/nedávného výkonu mi navrhni konkrétní úpravu dnešního tréninku nebo režimu.
+
+Buď konkrétní, pracuj s přesnými čísly z dat a piš strukturovaně v češtině.
 """
 
     try:
