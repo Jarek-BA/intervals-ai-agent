@@ -268,15 +268,67 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
 
 
 # --- 4. GENERATE AI RECOMMENDATION ---
-def _shorten_events_for_prompt(
-    events: List[Dict[str, Any]], max_chars: int = MAX_PROMPT_CHARS
-) -> str:
-    dumped = json.dumps(events, indent=2, ensure_ascii=False)
-    if len(dumped) <= max_chars:
-        return dumped
-    # If too long, take most recent entries and state we truncated
-    truncated = json.dumps(events[-30:], indent=2, ensure_ascii=False)
-    return f"(Truncated to last {min(30, len(events))} events)\n{truncated}"
+def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
+    formatted_lines = []
+    for e in events:
+        if not isinstance(e, dict):
+            continue
+
+        start_date = e.get("start_date_local", "")[:10]
+        name = e.get("name", "Bez názvu")
+        category = e.get("category") or e.get("type", "")
+
+        is_completed = bool(
+            e.get("activity_id") or e.get("type") == "Activity"
+        )
+        status_str = (
+            "✅ ODTRÉNOVÁNO"
+            if is_completed
+            else "📅 POUZE NAPLÁNOVÁNO (NEPROBĚHLO)"
+        )
+
+        line = f"• [{start_date}] {name} ({category}) - {status_str}"
+
+        if is_completed:
+            dist = e.get("distance", 0) / 1000.0
+            moving_time = e.get("moving_time", 0) // 60
+            avg_hr = e.get("average_heartrate", "N/A")
+            max_hr = e.get("max_heartrate", "N/A")
+            avg_watts = e.get("icu_average_watts", "N/A")
+            ef = e.get("efficiency_factor", "N/A")
+
+            line += (
+                f"\n   -> Celkem: {dist:.2f} km | Čas: {moving_time} min | "
+                f"Avg HR: {avg_hr} bpm | Max HR: {max_hr} bpm | "
+                f"Avg Power: {avg_watts} W | Efficiency Factor: {ef}"
+            )
+
+            # Detailní rozbor kol (Laps)
+            laps = e.get("icu_lap_outlines") or e.get("laps")
+            if laps and isinstance(laps, list):
+                line += "\n   -> Detailní úseky/kola (Laps):"
+                for idx, lap in enumerate(laps, 1):
+                    lap_dist = lap.get("distance", 0) / 1000.0
+                    gap = lap.get("gap") or lap.get("pace", "N/A")
+                    alt = lap.get("total_elevation_gain", lap.get("altitude_gain", 0))
+                    grad = lap.get("avg_gradient", 0)
+                    cadence = lap.get("average_cadence", "N/A")
+                    l_hr = lap.get("average_heartrate", "N/A")
+                    l_max_hr = lap.get("max_heartrate", "N/A")
+                    l_power = lap.get("average_watts", "N/A")
+                    ef_val = lap.get("efficiency_factor", "N/A")
+                    p_hr = lap.get("power_hr_ratio", ef_val)
+
+                    line += (
+                        f"\n      Lap {idx}: {lap_dist:.2f}km | GAP: {gap} | "
+                        f"Elev: +{alt}m ({grad:.1f}%) | Cadence: {cadence} spm | "
+                        f"HR: {l_hr} (Max {l_max_hr}) bpm | Power: {l_power}W | "
+                        f"P/HR: {p_hr}"
+                    )
+
+        formatted_lines.append(line)
+
+    return "\n".join(formatted_lines)
 
 
 def generate_ai_recommendation(
@@ -284,46 +336,67 @@ def generate_ai_recommendation(
 ) -> str:
     client = genai.Client(api_key=GEMINI_API_KEY)
 
+    today = datetime.date.today()
     events_for_prompt = _shorten_events_for_prompt(events)
 
     prompt = f"""
-Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je detailně vyhodnotit
-mé tréninky na základě hloubkových dat z Intervals.icu.
+Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je detailně
+vyhodnotit mé tréninky na základě hloubkových dat z Intervals.icu.
 
-**Můj profil a hlavní cíl:**
-- Cíl: Maraton Luzern (25. 10. 2026) – SUB 3:00 (MP: 4:12–4:18 min/km).
+**DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
+
+**MŮJ PROFIL A CÍLE:**
+- Cíl: Maraton Luzern (25. 10. 2026) – SUB 3:00 (Maratonské tempo MP: 4:12–4:18 min/km).
+- Zóny tempa: Easy Z2 = 4:52–5:24 min/km.
 - Doplňkové akce: Uster Triatlon (23. 8. 2026) & Bodensee Radmarathon (12. 9. 2026).
-- Zóny tempa: Easy / Z2 = 4:52–5:24 min/km. MP = 4:12–4:18 min/km.
 
-**Aktuální stav těla (Wellness):**
+**AKTUÁLNÍ WELLNESS DNEŠKA ({today.isoformat()}):**
 - Form (TSB): {wellness.get('form', 'N/A')}
 - Fitness (CTL): {wellness.get('ctl', 'N/A')}
 - Fatigue (ATL): {wellness.get('atl', 'N/A')}
 - Klidový tep (RHR): {wellness.get('restingHR', 'N/A')}
 
-**Detailní data z odtrénovaných aktivit a plánu za poslední dny:**
+**HISTORIE A PLÁN Z INTERVALS.ICU:**
 {events_for_prompt}
 
-**Požadovaný rozbor v e-mailu:**
-1. **Předepsané tempo vs. Realita:**
-   - Zda jsem u běhu dodržel předepsané tempo (např. Easy Z2 nebo MP úseky).
-   - Porovnání reakce tepovky (Avg HR, Max HR a drift tepovky během běhu).
-2. **Efektivita a Příkon (Power/HR & Cadence):**
-   - Zhodnocení Běžeckého výkonu (Watts), kadence a koeficientu efektivity
-     (Efficiency Factor - Power/HR).
-3. **Párování a plnění plánu (Compliance & Load):**
-   - Vyhodnocení celkové zátěže (Load vs. Planned Load) a plnění plánu v %.
-4. **Jasný verdikt a doporučení pro DNEŠNÍ DEN:**
-   - Na základě dnešního stavu únavy (TSB/ATL) a včerejšího/nedávného výkonu
-     mi navrhni konkrétní úpravu dnešního tréninku nebo režimu.
+---
 
-Buď konkrétní, pracuj s přesnými čísly z dat a piš strukturovaně v češtině.
+**STRIKTNÍ ANALYTICKÁ PRAVIDLA:**
+1. **Dnešní datum:** Vždy vycházej z toho, že DNEŠEK je {today.isoformat()}.
+2. **Dokončené vs. Plánované:** Události "POUZE NAPLÁNOVÁNO" JEŠTĚ NEPROBĚHLY.
+3. **GAP místo Pace:** Při vyhodnocení tempa IGNORUJ standardní Pace a hodnot
+    výhradně **GAP (Grade Adjusted Pace)**.
+4. **Převýšení (Altitude/Gradient):** Zohledni klesání a stoupání, které vysvětlují
+   změny výkonu/tempa.
+5. **Heart Rate Drift & Efektivita:** Sleduj vývoj tepu (Avg HR/Max HR)
+   napříč úseky (Laps).
+   Rostoucí tep při stejném GAP znamená kardiovaskulární drift/únavu.
+   Sleduj i koeficient Power/HR a kadenci.
+
+---
+
+**POŽADOVANÁ STRUKTURA E-MAILU:**
+
+## 🏃‍♂️ Denní AI Koučink – {today.isoformat()}
+
+### 📊 1. Stav těla a Únava (Wellness)
+- Zhodnocení TSB, CTL, ATL a RHR k dnešnímu dni.
+
+### 🎯 2. Hloubková analýza úseků (Laps Analysis)
+- Hodnocení **GAP** na jednotlivých úsecích vs. plánované tempo
+  (MP 4:12–4:18 / Easy 4:52–5:24).
+- Analýza převýšení, reakce tepové frekvence (HR drift) a stability kadence.
+- Hodnocení běžecké efektivity (Power / HR ratio).
+
+### 📋 3. Verdikt a doporučení pro DNEŠNÍ DEN ({today.isoformat()})
+- Konkrétní pokyn pro dnešní trénink na základě včerejšího zatažení a aktuálního TSB.
+
+Buď konkrétní, pracuj s přesnými čísly z kol a piš v češtině.
 """
 
     try:
         interaction = client.interactions.create(
-            model="gemini-3.5-flash",
-            input=prompt
+            model="gemini-3.5-flash", input=prompt
         )
         text = interaction.output_text
     except Exception as e:
