@@ -53,7 +53,11 @@ def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, st
 
 
 def validate_env_vars() -> None:
-    """Validate required environment variables and exit with a helpful message if missing."""
+    """
+        Validate required environment variables and exit 
+        with a helpful message if missing.
+    """
+    
     missing = []
     if not INTERVALS_API_KEY:
         missing.append("INTERVALS_API_KEY")
@@ -69,7 +73,8 @@ def validate_env_vars() -> None:
     if not (EMAIL_SENDER and EMAIL_PASSWORD and EMAIL_RECEIVER):
         logger.warning(
             "Email config incomplete; email sending may fail. "
-            "Ensure EMAIL_SENDER, EMAIL_PASSWORD, and EMAIL_RECEIVER are set."
+            "Ensure EMAIL_SENDER, EMAIL_PASSWORD,"
+            "and EMAIL_RECEIVER are set."
         )
 
 
@@ -212,7 +217,11 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     start_date = today - datetime.timedelta(days=10)
     end_date = today + datetime.timedelta(days=2)
 
-    wellness_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/wellness/{today.isoformat()}"
+    wellness_url = (
+            f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/"
+            f"wellness/{today.isoformat()}"
+    )
+    res_wellness = safe_get(wellness_url)
     res_wellness = safe_get(wellness_url)
     wellness_data = safe_json(res_wellness) or {}
 
@@ -243,15 +252,15 @@ def generate_ai_recommendation(
 
     events_for_prompt = _shorten_events_for_prompt(events)
 
-    prompt = f"""
+prompt = f"""
 Jsi můj osobní vytrvalostní tréninkový AI kouč.
 
 **Můj kontext:**
-- Hlavní cíl: Maraton Luzern (25. 10. 2026) – cíl SUB 3:00 (Maratonské tempo MP: 4:12–4:18 min/km).
+- Hlavní cíl: Maraton Luzern (25. 10. 2026) – cíl SUB 3:00 (MP: 4:12–4:18 min/km).
 - Doplňkové akce:
-  * Uster Triatlon (23. 8. 2026 – 1.5 km OWS pod 30 min / 10 km RUN pod 40 min / tempo 4:00 min/km)
+  * Uster Triatlon (23. 8. 2026 – 1.5 km OWS <30m / 10 km RUN <40m / tempo 4:00 min/km)
   * Bodensee Radmarathon (12. 9. 2026 – 220 km na kole v Z2 jako objem na Ironmana)
-- Tréninková filozofie: Ben Parkes Level 4 (vysoký objem, Easy běhy v Z2: 4:52–5:24 min/km, MP intervaly, Long runy).
+- Tréninková filozofie: Ben Parkes Level 4 (vysoký objem, Easy Z2: 4:52–5:24 min/km).
 - Priorita: Běh má 100% prioritu. Kolo a plavání jsou doplňkový cross-training.
 
 **Aktuální data z mého účtu Intervals.icu (k dnešnímu dni):**
@@ -260,12 +269,12 @@ Jsi můj osobní vytrvalostní tréninkový AI kouč.
 - Fatigue / ATL: {wellness.get('atl', 'N/A')}
 - Klidový tep (RHR): {wellness.get('restingHR', 'N/A')}
 
-**Historie tréninků a naplánované tréninky (Posledních 10 dní + Plán na dnešek a zítřek):**
+**Historie tréninků a naplánované tréninky (Posledních 10 dní + Dnes a Zítřek):**
 {events_for_prompt}
 
 **Tůj úkol:**
 1. Porovnej naplánované tréninky s reálně odtrénovanými aktivitami za poslední týden.
-2. Zhodnoť stav mé únavy (TSB/CTL/ATL) v kontextu blížícho se Uster Triatlonu a maratonského cyklu.
+2. Zhodnoť stav mé únavy (TSB/CTL/ATL) v kontextu Uster Triatlonu a maratonského cyklu.
 3. Dej mi jasné, konkrétní a strukturované doporučení pro DNEŠNÍ DEN.
 4. Buď stručný, věcný, motivující a piš v češtině.
 """
