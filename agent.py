@@ -412,25 +412,43 @@ Buď konkrétní, pracuj s přesnými čísly z kol a piš v češtině.
 
 
 # --- 5. SEND EMAIL ---
-def send_email(subject: str, body: str) -> bool:
-    if not (EMAIL_SENDER and EMAIL_PASSWORD and EMAIL_RECEIVER):
-        logger.error("Email not sent: missing email configuration.")
-        return False
+import markdown
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-    msg = MIMEText(body, "plain", "utf-8")
+
+def send_email(subject: str, markdown_content: str) -> None:
+    # Převod Markdownu z Gemini do čistého HTML pro Outlook
+    html_body = markdown.markdown(
+        markdown_content, extensions=["tables", "fenced_code"]
+    )
+
+    # Obalení do jednoduchého CSS pro pěkné zobrazení
+    full_html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            {html_body}
+        </div>
+      </body>
+    </html>
+    """
+
+    msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = EMAIL_SENDER
     msg["To"] = EMAIL_RECEIVER
 
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_SENDER, [EMAIL_RECEIVER], msg.as_string())
-        logger.info("Email sent to %s", EMAIL_RECEIVER)
-        return True
-    except Exception as e:
-        logger.exception("Failed to send email: %s", e)
-        return False
+    # Připojíme jak prostý text, tak HTML verzi
+    part_text = MIMEText(markdown_content, "plain", "utf-8")
+    part_html = MIMEText(full_html, "html", "utf-8")
+
+    msg.attach(part_text)
+    msg.attach(part_html)
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
 
 
 # --- MAIN RUN ---
