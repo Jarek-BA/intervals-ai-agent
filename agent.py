@@ -4,14 +4,13 @@ import datetime
 import smtplib
 from email.mime.text import MIMEText
 import requests
-from google import genai
+import google.generativeai as genai
 
-# --- 1. KONFIGURACE Z PROSTŘEDÍ (ENV VARIABLES) ---
+# --- 1. KONFIGURACE Z PROSTŘEDÍ ---
 ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID", "i510990")
 INTERVALS_API_KEY = os.environ.get("INTERVALS_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Email konfigurace
 EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
@@ -21,13 +20,14 @@ AUTH = ("API_KEY", INTERVALS_API_KEY)
 # --- 2. SYNCHRONIZACE TRÉNINKOVÉHO PLÁNU DO INTERVALS.ICU ---
 def sync_plan_from_file(filename="plan.json"):
     if not os.path.exists(filename):
-        print(f"Soubor {filename} nenalezen, přeskakuji synchronizaci plánu.")
+        print(f"⚠️ Soubor {filename} nenalezen, přeskakuji synchronizaci plánu.")
         return
 
     with open(filename, "r", encoding="utf-8") as f:
         planned_items = json.load(f)
 
     if not planned_items:
+        print("⚠️ Soubor plan.json je prázdný.")
         return
 
     # Najdeme nejstarší a nejnovější datum přímo v plan.json
@@ -35,7 +35,6 @@ def sync_plan_from_file(filename="plan.json"):
     min_date = min(all_dates)
     max_date = max(all_dates)
 
-    # Stáhneme události z Intervals.icu pro celé období plánu (od 10. 8.)
     url_events = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
     params = {
         "oldest": min_date,
@@ -45,14 +44,13 @@ def sync_plan_from_file(filename="plan.json"):
     res = requests.get(url_events, auth=AUTH, params=params)
     existing_events = res.json() if res.status_code == 200 else []
     
-    # Množina existujících událostí ve tvaru "YYYY-MM-DD_Název"
+    # Existující události ve tvaru "YYYY-MM-DD_Název"
     existing_keys = {f"{e.get('start_date_local', '')[:10]}_{e.get('name')}" for e in existing_events}
 
     for item in planned_items:
         item_date = item["date"]
         event_key = f"{item_date}_{item['name']}"
         
-        # Nahrajeme trénink, pokud v Intervals.icu ještě neexistuje
         if event_key not in existing_keys:
             payload = {
                 "start_date_local": f"{item_date}T07:00:00",
@@ -68,18 +66,18 @@ def sync_plan_from_file(filename="plan.json"):
         else:
             print(f"ℹ️ Trénink na {item_date} ({item['name']}) už v kalendáři existuje.")
 
-# --- 3. ZÍSKÁNÍ DAT Z INTERVALS.ICU (POSLEDNÍCH 10 DNÍ + DNEŠEK) ---
+# --- 3. ZÍSKÁNÍ DAT Z INTERVALS.ICU ---
 def get_intervals_data():
     today = datetime.date.today()
-    start_date = today - datetime.timedelta(days=10) # 10 dní historie pro kontext
-    end_date = today + datetime.timedelta(days=2)    # Načte i zítřek/pozítří
+    start_date = today - datetime.timedelta(days=10)
+    end_date = today + datetime.timedelta(days=2)
     
     # Wellness data
     wellness_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/wellness/{today.isoformat()}"
     res_wellness = requests.get(wellness_url, auth=AUTH)
     wellness_data = res_wellness.json() if res_wellness.status_code == 200 else {}
     
-    # Události a aktivity (Historie + Plán)
+    # Události a aktivity
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
     params = {"oldest": start_date.isoformat(), "newest": end_date.isoformat()}
     res_events = requests.get(events_url, auth=AUTH, params=params)
@@ -89,7 +87,8 @@ def get_intervals_data():
 
 # --- 4. GENEROVÁNÍ DOPORUČENÍ POMOCÍ GEMINI AI ---
 def generate_ai_recommendation(wellness, events):
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     prompt = f"""
     Jsi můj osobní vytrvalostní tréninkový AI kouč.
@@ -114,14 +113,11 @@ def generate_ai_recommendation(wellness, events):
     **Tůj úkol:**
     1. Porovnej naplánované tréninky s reálně odtrénovanými aktivitami za poslední týden.
     2. Zhodnoť stav mé únavy (TSB/CTL/ATL) v kontextu blížícho se Uster Triatlonu a maratonského cyklu.
-    3. Dej mi jasné, konkrétní a strukturované doporučení pro DNEŠNÍ DEN (zda odtrénovat trénink přesně podle plánu, upravit tempa/intenzitu, nebo zařadit regeneraci).
+    3. Dej mi jasné, konkrétní a strukturované doporučení pro DNEŠNÍ DEN.
     4. Buď stručný, věcný, motivující a piš v češtině.
     """
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response = model.generate_content(prompt)
     return response.text
 
 # --- 5. ODESLÁNÍ E-MAILU ---
