@@ -235,15 +235,59 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
 
 
 # --- 4. GENERATE AI RECOMMENDATION ---
-def _shorten_events_for_prompt(
-    events: List[Dict[str, Any]], max_chars: int = MAX_PROMPT_CHARS
-) -> str:
-    dumped = json.dumps(events, indent=2, ensure_ascii=False)
-    if len(dumped) <= max_chars:
-        return dumped
-    # If too long, take most recent entries and state we truncated
-    truncated = json.dumps(events[-30:], indent=2, ensure_ascii=False)
-    return f"(Truncated to last {min(30, len(events))} events)\n{truncated}"
+def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
+    formatted_lines = []
+    for e in events:
+        if not isinstance(e, dict):
+            continue
+
+        start_date = e.get("start_date_local", "")[:10]
+        name = e.get("name", "Bez názvu")
+        category = e.get("category") or e.get("type", "")
+
+        # Zjištění, zda jde o dokončenou aktivitu nebo jen plán
+        is_completed = bool(
+            e.get("activity_id") or e.get("type") == "Activity"
+        )
+        status_str = (
+            "✅ ODTRÉNOVÁNO"
+            if is_completed
+            else "📅 POUZE NAPLÁNOVÁNO (NEPROBĚHLO)"
+        )
+
+        line = f"• [{start_date}] {name} ({category}) - {status_str}"
+
+        if is_completed:
+            # Přidání klíčových metrik z odtrénované aktivity
+            dist = e.get("distance", 0) / 1000.0
+            moving_time = e.get("moving_time", 0) // 60
+            avg_hr = e.get("average_heartrate", "N/A")
+            max_hr = e.get("max_heartrate", "N/A")
+            avg_watts = e.get("icu_average_watts", "N/A")
+            ef = e.get("efficiency_factor", "N/A")
+
+            line += (
+                f"\n   -> Statistiky: {dist:.2f} km | Čas: {moving_time} min | "
+                f"Avg HR: {avg_hr} bpm | Max HR: {max_hr} bpm | "
+                f"Avg Power: {avg_watts} W | EF: {ef}"
+            )
+
+            # Pokud existují podrobné úseky/kola (laps), přidáme je
+            laps = e.get("laps") or e.get("icu_lap_outlines")
+            if laps and isinstance(laps, list):
+                line += "\n   -> Detailní úseky/kola (Laps):"
+                for idx, lap in enumerate(laps, 1):
+                    lap_dist = lap.get("distance", 0) / 1000.0
+                    lap_pace = lap.get("pace", "N/A")
+                    lap_hr = lap.get("average_heartrate", "N/A")
+                    line += (
+                        f"\n      Lap {idx}: {lap_dist:.2f} km @ "
+                        f"{lap_pace} | Tep: {lap_hr} bpm"
+                    )
+
+        formatted_lines.append(line)
+
+    return "\n".join(formatted_lines)
 
 
 def generate_ai_recommendation(
@@ -251,39 +295,62 @@ def generate_ai_recommendation(
 ) -> str:
     client = genai.Client(api_key=GEMINI_API_KEY)
 
+    today = datetime.date.today()
     events_for_prompt = _shorten_events_for_prompt(events)
 
     prompt = f"""
-Jsi můj osobní vytrvalostní tréninkový AI kouč.
+Jsi špičkový vytrvalostní běžecký kouč. Tvým úkolem je provést nekompromisní,
+přesnou a strukturovanou analýzu mého tréninku.
 
-**Můj kontext:**
-- Hlavní cíl: Maraton Luzern (25. 10. 2026) – cíl SUB 3:00 (MP: 4:12–4:18 min/km).
-- Doplňkové akce:
-  * Uster Triatlon (23. 8. 2026 – 1.5 km OWS <30m / 10 km RUN <40m / tempo 4:00 min/km)
-  * Bodensee Radmarathon (12. 9. 2026 – 220 km na kole v Z2 jako objem na Ironmana)
-- Tréninková filozofie: Ben Parkes Level 4 (vysoký objem, Easy Z2: 4:52–5:24 min/km).
-- Priorita: Běh má 100% prioritu. Kolo a plavání jsou doplňkový cross-training.
+**DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
 
-**Aktuální data z mého účtu Intervals.icu (k dnešnímu dni):**
-- Form / TSB (Čerstvost/Únava): {wellness.get('form', 'N/A')}
-- Fitness / CTL: {wellness.get('ctl', 'N/A')}
-- Fatigue / ATL: {wellness.get('atl', 'N/A')}
+**MŮJ PROFIL A CÍLE:**
+- Cíl: Maraton Luzern (25. 10. 2026) – SUB 3:00 (Maratonské tempo MP: 4:12–4:18 min/km).
+- Zóny tempa: Easy Z2 = 4:52–5:24 min/km.
+- Doplňkové akce: Uster Triatlon (23. 8. 2026) & Bodensee Radmarathon (12. 9. 2026).
+
+**AKTUÁLNÍ WELLNESS DNEŠKA ({today.isoformat()}):**
+- Form (TSB): {wellness.get('form', 'N/A')}
+- Fitness (CTL): {wellness.get('ctl', 'N/A')}
+- Fatigue (ATL): {wellness.get('atl', 'N/A')}
 - Klidový tep (RHR): {wellness.get('restingHR', 'N/A')}
 
-**Historie tréninků a naplánované tréninky (Posledních 10 dní + Dnes a Zítřek):**
+**HISTORIE A PLÁN Z INTERVALS.ICU:**
 {events_for_prompt}
 
-**Tůj úkol:**
-1. Porovnej naplánované tréninky s reálně odtrénovanými aktivitami za poslední týden.
-2. Zhodnoť stav mé únavy (TSB/CTL/ATL) v kontextu Uster Triatlonu a maratonského cyklu.
-3. Dej mi jasné, konkrétní a strukturované doporučení pro DNEŠNÍ DEN.
-4. Buď stručný, věcný, motivující a piš v češtině.
+---
+
+**STRIKTNÍ PRAVIDLA PRO ANALÝZU:**
+1. **Dnešní datum:** Vždy vycházej z toho, že DNEŠEK je {today.isoformat()}.
+2. **Dokončené vs. Plánované:** Události označené jako "POUZE NAPLÁNOVÁNO"
+   JEŠTĚ NEPROBĚHLY! Nikdy je neporovnávej jako splněné.
+3. **Plnění tempa na úsecích:** U odtrénovaných běhů zkontroluj jednotlivé
+   úseky (laps). Pokud jsem měl běžet MP 4:12–4:18 a běžel jsem 4:30, natvrdo
+   upozorni, že tempo NEBYLO dodrženo a vyhodnoť proč.
+
+---
+
+**POŽADOVANÁ STRUKTURA E-MAILU (Použij čitelný HTML/Markdown layout):**
+
+## 🏃‍♂️ Denní AI Koučink – {today.isoformat()}
+
+### 📊 1. Stav těla a Únava (Wellness)
+- Stručné vyhodnocení TSB, CTL, ATL a RHR k dnešnímu dni.
+
+### 🎯 2. Analýza odtrénovaných běhů (Plán vs. Realita)
+- Detailní rozbor posledních ODTRÉNOVANÝCH aktivit.
+- Zda bylo dodrženo tempo na jednotlivých úsecích (MP vs. Easy).
+- Hodnocení tepovky, driftu a efektivita (EF / Power/HR).
+
+### 📋 3. Verdikt a doporučení pro DNEŠNÍ DEN ({today.isoformat()})
+- Jasný pokyn, co DNEŠKA přesně odtrénovat nebo jak upravit plán s ohledem na únavu a včerejší výkon.
+
+Buď konkrétní, objektivní, pracuj s reálnými čísly z úseků a piš v češtině.
 """
 
     try:
         interaction = client.interactions.create(
-            model="gemini-3.5-flash",
-            input=prompt
+            model="gemini-3.5-flash", input=prompt
         )
         text = interaction.output_text
     except Exception as e:
@@ -297,7 +364,6 @@ Jsi můj osobní vytrvalostní tréninkový AI kouč.
             text = str(text)
 
     return text
-
 
 # --- 5. SEND EMAIL ---
 def send_email(subject: str, body: str) -> bool:
