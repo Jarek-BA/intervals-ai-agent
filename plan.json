@@ -1,0 +1,98 @@
+[
+  {
+    "date": "2026-08-10",
+    "type": "Ride",
+    "name": "🚴 Kolo Z2 (Udržovací objem)",
+    "description": "Z2 Kolo / Aerobní vytrvalost\n- 75m Z2 (60-70% FTP)"
+  },
+  {
+    "date": "2026-08-11",
+    "type": "Run",
+    "name": "🏃 Rychlostní intervaly (13.6 km)",
+    "description": "Kvalitní běžecký trénink:\n- 2km Z2 vyklusání\n- 5x 1km Z4 (Interval pace 3:44-3:53 min/km) / 2m vyklusání\n- 1.6km Z2 vyklus"
+  },
+  {
+    "date": "2026-08-12",
+    "type": "Swim",
+    "name": "🏊 Bazén - Technika a Tempo",
+    "description": "Technika a aerobní vytrvalost v bazénu\n- 45m Z2 swim"
+  },
+  {
+    "date": "2026-08-13",
+    "type": "Run",
+    "name": "🏃 KLÍČOVÝ: Long Run 29 km (16k Easy + 11k MP)",
+    "description": "Dlouhý běh se střídáním temp:\n- 16km Easy Pace (4:52-5:24 min/km)\n- 11km MP Maraton Pace (4:12-4:18 min/km)\n- 2km Easy vyklusání\nNezapomeň doplňovat gely každých 30-35 min!"
+  },
+  {
+    "date": "2026-08-14",
+    "type": "Run",
+    "name": "🏃 Easy Run 6 km",
+    "description": "Regenerační běh po dlouhém běhu:\n- 6km Easy Pace (4:52-5:24 min/km)"
+  },
+  {
+    "date": "2026-08-14",
+    "type": "Swim",
+    "name": "🏊 OWS Plavání v neoprenu (45 min)",
+    "description": "Plavání na otevřené vodě\n- 45m OWS Z2 swim"
+  },
+  {
+    "date": "2026-08-15",
+    "type": "Run",
+    "name": "🏃 Easy Run 8 km",
+    "description": "Aerobní běh:\n- 8km Easy Pace (4:52-5:24 min/km)"
+  },
+  {
+    "date": "2026-08-15",
+    "type": "Ride",
+    "name": "🚴 Kolo Z2 (Základ na Bodensee/Ironman)",
+    "description": "Dlouhé vytrvalostní kolo:\n- 2h Z2 (60-70% FTP)"
+  },
+  {
+    "date": "2026-08-16",
+    "type": "Run",
+    "name": "🏃 Easy Run 8 km + Strides",
+    "description": "Ukončení Týdne 5:\n- 8km Easy Pace (4:52-5:24 min/km)\n- 5x 20s Strides (Rovinky 95% úsilí)"
+  },
+  {
+    "date": "2026-08-17",
+    "type": "Run",
+    "name": "🏃 Easy Run 10 km (Týden 6 Uster)",
+    "description": "Příprava na zítřejší dlouhý běh:\n- 10km Easy Pace (4:52-5:24 min/km)"
+  },
+  {
+    "date": "2026-08-17",
+    "type": "Swim",
+    "name": "🏊 Bazén - Závodní tempo 100m",
+    "description": "Příprava na nedělní Uster:\n- 45m Swim (včetně 4x100m v tempu 2:00/100m)"
+  },
+  {
+    "date": "2026-08-18",
+    "type": "Run",
+    "name": "🏃 KLÍČOVÝ: Long Run 31 km (Předsunutý)",
+    "description": "Nejdůležitější dlouhý běh před Usterem:\n- 31km Easy Pace (4:52-5:20 min/km)\nTestovat výživu (gely každých 30-35 min)!"
+  },
+  {
+    "date": "2026-08-20",
+    "type": "Run",
+    "name": "🏃 Easy Run 6 km + Strides",
+    "description": "Aktivace před závodním víkendem:\n- 6km Easy Pace (4:52-5:24 min/km)\n- 4x 20s Strides"
+  },
+  {
+    "date": "2026-08-22",
+    "type": "Run",
+    "name": "🏃 Předzávodní aktivace (15m Běh + 15m Kolo)",
+    "description": "Předzávodní probuzení:\n- 15m Easy Run + 3x 30s závodní tempo\n- 15m Easy Ride"
+  },
+  {
+    "date": "2026-08-23",
+    "type": "Swim",
+    "name": "🏊 ZÁVOD: Uster Triathlon - Plavání 1.5 km",
+    "description": "Závodní plavání OWS 1.5 km (Cíl pod 30 min, tempo ~2:00/100m)"
+  },
+  {
+    "date": "2026-08-23",
+    "type": "Run",
+    "name": "🏃 ZÁVOD: Uster Triathlon - Běh 10 km (Cíl SUB 40m)",
+    "description": "Závodní běh na 10 km:\n- 2km Rozklus\n- 10km ZÁVOD (Tempo 4:00 min/km)\n- 1km Vyklus"
+  }
+]
