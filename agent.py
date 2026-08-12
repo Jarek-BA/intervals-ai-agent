@@ -285,7 +285,7 @@ def generate_ai_recommendation(
 
     events_for_prompt = _shorten_events_for_prompt(events)
 
-prompt = f"""
+    prompt = f"""
 Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je detailně vyhodnotit mé tréninky na základě hloubkových dat z Intervals.icu.
 
 **Můj profil a hlavní cíl:**
