@@ -248,7 +248,8 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         )
 
         if activity_id:
-            # Stáhneme plná data aktivity (obsahuje Avg/Max HR, GAP, Efficiency, Power, Cadence...)
+            # Stáhneme plná data aktivity (obsahuje Avg/Max HR, GAP, Efficiency, 
+            # Power, Cadence...)
             act_url = f"https://intervals.icu/api/v1/activity/{activity_id}"
             res_act = safe_get(act_url)
             act_details = safe_json(res_act)
@@ -286,10 +287,11 @@ def generate_ai_recommendation(
     events_for_prompt = _shorten_events_for_prompt(events)
 
     prompt = f"""
-Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je detailně vyhodnotit mé tréninky na základě hloubkových dat z Intervals.icu.
+Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je detailně vyhodnotit
+mé tréninky na základě hloubkových dat z Intervals.icu.
 
 **Můj profil a hlavní cíl:**
-- Cíl: Maraton Luzern (25. 10. 2026) – SUB 3:00 (Maratonské tempo / MP: 4:12–4:18 min/km).
+- Cíl: Maraton Luzern (25. 10. 2026) – SUB 3:00 (MP: 4:12–4:18 min/km).
 - Doplňkové akce: Uster Triatlon (23. 8. 2026) & Bodensee Radmarathon (12. 9. 2026).
 - Zóny tempa: Easy / Z2 = 4:52–5:24 min/km. MP = 4:12–4:18 min/km.
 
@@ -305,13 +307,15 @@ Jsi expert na vytrvalostní běh a osobní AI kouč. Tvým úkolem je detailně 
 **Požadovaný rozbor v e-mailu:**
 1. **Předepsané tempo vs. Realita:**
    - Zda jsem u běhu dodržel předepsané tempo (např. Easy Z2 nebo MP úseky).
-   - Porovnání reakce tepové frekvence (Avg HR, Max HR a drift tepovky v průběhu běhu).
+   - Porovnání reakce tepovky (Avg HR, Max HR a drift tepovky během běhu).
 2. **Efektivita a Příkon (Power/HR & Cadence):**
-   - Zhodnocení Běžeckého výkonu (Watts), kadence a koeficientu efektivity (Efficiency Factor - Power/HR).
+   - Zhodnocení Běžeckého výkonu (Watts), kadence a koeficientu efektivity
+     (Efficiency Factor - Power/HR).
 3. **Párování a plnění plánu (Compliance & Load):**
    - Vyhodnocení celkové zátěže (Load vs. Planned Load) a plnění plánu v %.
 4. **Jasný verdikt a doporučení pro DNEŠNÍ DEN:**
-   - Na základě dnešního stavu únavy (TSB/ATL) a včerejšího/nedávného výkonu mi navrhni konkrétní úpravu dnešního tréninku nebo režimu.
+   - Na základě dnešního stavu únavy (TSB/ATL) a včerejšího/nedávného výkonu
+     mi navrhni konkrétní úpravu dnešního tréninku nebo režimu.
 
 Buď konkrétní, pracuj s přesnými čísly z dat a piš strukturovaně v češtině.
 """
