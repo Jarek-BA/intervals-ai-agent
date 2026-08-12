@@ -1,122 +1,38 @@
 [
-  {
-    "date": "2026-08-10",
-    "type": "Ride",
-    "name": "🚴 Kolo Z2 (60-90 min)",
-    "description": "Warmup\n- 10m 60% FTP\n\nMain set\n- 60m Z2 65% FTP 90rpm\n\nCooldown\n- 10m 55% FTP"
-  },
-  {
+{
     "date": "2026-08-11",
+    "name": "Intervals (10x 2min)",
     "type": "Run",
-    "name": "🏃 Rychlostní intervaly (14 km celkem)",
-    "description": "Warmup\n- WU 15m 04:52-05:24 Pace\n\n10x\n- Interval 2m 03:44-03:53 Pace\n- Recover 2m 05:27-06:07 Pace\n\nCooldown\n- CD 10m 04:52-05:24 Pace"
-  },
-  {
-    "date": "2026-08-11",
-    "type": "Swim",
-    "name": "🏊 Plavání v bazénu (45 min)",
-    "description": "Main set\n- 45m Z2 02:00 Pace"
+    "description": "Warmup\n- 15m Easy 4:52-5:24/km\n\nMain Set 10x\n- 2m 3:44-3:53/km\n- 2m Easy 4:52-5:24/km\n\nCooldown\n- 10m Easy 4:52-5:24/km"
   },
   {
     "date": "2026-08-12",
+    "name": "Long Run with MP (28 km)",
     "type": "Run",
-    "name": "🏃 KLÍČOVÝ RUN 1: Long Run 29 km",
-    "description": "Warmup\n- 16km 04:52-05:24 Pace\n\nMain set\n- 11km 04:12-04:18 Pace\n\nCooldown\n- 2km 04:52-05:24 Pace"
+    "description": "Warmup\n- 15km Easy 4:52-5:24/km\n\nMain Set\n- 10km MP 4:12-4:18/km\n\nCooldown\n- 3km Easy 4:52-5:24/km"
   },
   {
     "date": "2026-08-13",
+    "name": "Easy Run",
     "type": "Run",
-    "name": "🏃 Easy Run 8 km (Aktivní regenerace)",
-    "description": "Main set\n- 8km 04:52-05:24 Pace"
+    "description": "- 8km Easy 4:52-5:24/km"
   },
   {
     "date": "2026-08-14",
+    "name": "Easy Run",
     "type": "Run",
-    "name": "🏃 Easy Run 8 km",
-    "description": "Main set\n- 8km 04:52-05:24 Pace"
-  },
-  {
-    "date": "2026-08-14",
-    "type": "Swim",
-    "name": "🏊 Plavání OWS Jezero v neoprenu (45 min)",
-    "description": "Main set\n- 45m Z2"
+    "description": "- 8km Easy 4:52-5:24/km"
   },
   {
     "date": "2026-08-15",
+    "name": "Easy Run",
     "type": "Run",
-    "name": "🏃 Easy Run 12 km",
-    "description": "Main set\n- 12km 04:52-05:24 Pace"
-  },
-  {
-    "date": "2026-08-15",
-    "type": "Ride",
-    "name": "🚴 Kolo Z2 (2-2.5h)",
-    "description": "Warmup\n- 10m 60% FTP\n\nMain set\n- 120m Z2 65% FTP\n\nCooldown\n- 10m 55% FTP"
+    "description": "- 12km Easy 4:52-5:24/km"
   },
   {
     "date": "2026-08-16",
+    "name": "Easy Run + Strides",
     "type": "Run",
-    "name": "🏃 Easy Run 10 km + Strides",
-    "description": "Warmup\n- 10km 04:52-05:24 Pace\n\n5x\n- Interval 20s 03:20 Pace\n- Recover 40s 06:00 Pace"
-  },
-  {
-    "date": "2026-08-17",
-    "type": "Run",
-    "name": "🏃 Easy Run 10 km",
-    "description": "Main set\n- 10km 04:52-05:24 Pace"
-  },
-  {
-    "date": "2026-08-17",
-    "type": "Swim",
-    "name": "🏊 Plavání v bazénu (45 min + 4x100m Uster tempo)",
-    "description": "Warmup\n- 200m Easy\n\n4x\n- Interval 100m 02:00 Pace\n- Recover 30s Rest\n\nCooldown\n- 200m Easy"
-  },
-  {
-    "date": "2026-08-18",
-    "type": "Run",
-    "name": "🏃 Easy Run 10 km",
-    "description": "Main set\n- 10km 04:52-05:24 Pace"
-  },
-  {
-    "date": "2026-08-19",
-    "type": "Run",
-    "name": "🏃 KLÍČOVÝ RUN 2: Long Run 31 km",
-    "description": "Main set\n- 31km 04:52-05:20 Pace"
-  },
-  {
-    "date": "2026-08-20",
-    "type": "Run",
-    "name": "🏃 Easy Run 8 km (Aktivní regenerace)",
-    "description": "Main set\n- 8km 04:52-05:24 Pace"
-  },
-  {
-    "date": "2026-08-20",
-    "type": "Swim",
-    "name": "🏊 Plavání OWS Jezero (30-40 min)",
-    "description": "Main set\n- 35m Z1 Easy"
-  },
-  {
-    "date": "2026-08-21",
-    "type": "Run",
-    "name": "🏃 Easy Run 5 km + Strides (Tapering)",
-    "description": "Warmup\n- 5km 04:52-05:24 Pace\n\n4x\n- Interval 20s 03:20 Pace\n- Recover 40s 06:00 Pace"
-  },
-  {
-    "date": "2026-08-22",
-    "type": "Ride",
-    "name": "🚴 Kolo 20 min (Předzávodní aktivace)",
-    "description": "Warmup\n- 10m Easy\n\n3x\n- Interval 30s Fast\n- Recover 30s Easy\n\nCooldown\n- 7m Easy"
-  },
-  {
-    "date": "2026-08-23",
-    "type": "Swim",
-    "name": "🏊 ZÁVOD: Uster Triathlon - Plavání 1.5 km",
-    "description": "Main set\n- 1500m 02:00 Pace"
-  },
-  {
-    "date": "2026-08-23",
-    "type": "Run",
-    "name": "🏃 ZÁVOD: Uster Triathlon - Běh 13 km celkem",
-    "description": "Warmup\n- 2km 05:00 Pace\n\nMain set\n- 10km 04:00 Pace\n\nCooldown\n- 1km 05:30 Pace"
+    "description": "Main Set\n- 9km Easy 4:52-5:24/km\n\nStrides 5x\n- 20s Fast 3:30-3:45/km\n- 40s Easy 5:24-6:00/km\n\nCooldown\n- 500m Easy 4:52-5:24/km"
   }
 ]
