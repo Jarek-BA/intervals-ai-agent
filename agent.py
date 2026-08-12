@@ -1,18 +1,20 @@
 # Full hardened agent.py (replace the file contents)
-import os
-import sys
-import json
 import datetime
+import json
 import logging
+import os
 import smtplib
+import sys
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
 from google import genai
+import requests
 
 # Basic config
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 10  # seconds
@@ -30,13 +32,16 @@ EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 # Keep the old tuple for basic auth fallback (user, pass) if requested
 BASIC_AUTH_TUPLE = ("API_KEY", INTERVALS_API_KEY)
 
+
 # Helper: decide headers vs requests auth
 def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, str]]]:
-    """
-    Return (headers_dict or None, auth_tuple or None).
-    If INTERVALS_USE_BASIC_AUTH is set in env, return auth tuple, otherwise return Authorization header.
+    """Return (headers_dict or None, auth_tuple or None).
 
-    NOTE: Read the env var at call time so tests and runtime monkeypatching work correctly.
+    If INTERVALS_USE_BASIC_AUTH is set in env, return auth tuple,
+    otherwise return Authorization header.
+
+    NOTE: Read the env var at call time so tests and runtime
+    monkeypatching work correctly.
     """
     intervals_key = os.environ.get("INTERVALS_API_KEY")
     if os.environ.get("INTERVALS_USE_BASIC_AUTH"):
@@ -48,41 +53,62 @@ def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, st
 
 
 def validate_env_vars() -> None:
-    """Validate required environment variables and exit with a helpful message if missing."""
+    """Validate required environment variables and exit
+    with a helpful message if missing.
+    """
     missing = []
     if not INTERVALS_API_KEY:
         missing.append("INTERVALS_API_KEY")
     if not GEMINI_API_KEY:
         missing.append("GEMINI_API_KEY")
     if missing:
-        logger.error("Missing required environment variables: %s", ", ".join(missing))
+        logger.error(
+            "Missing required environment variables: %s", ", ".join(missing)
+        )
         sys.exit(2)
 
     # Email vars are optional for development, warn if missing
     if not (EMAIL_SENDER and EMAIL_PASSWORD and EMAIL_RECEIVER):
         logger.warning(
-            "Email config incomplete; email sending may fail. Ensure EMAIL_SENDER, EMAIL_PASSWORD, and EMAIL_RECEIVER are set."
+            "Email config incomplete; email sending may fail. "
+            "Ensure EMAIL_SENDER, EMAIL_PASSWORD, "
+            "and EMAIL_RECEIVER are set."
         )
 
 
 # --- HTTP helpers with timeouts and safe JSON decoding ---
-def safe_get(url: str, params: Optional[Dict[str, Any]] = None) -> Optional[requests.Response]:
+def safe_get(
+    url: str, params: Optional[Dict[str, Any]] = None
+) -> Optional[requests.Response]:
     headers, auth = get_request_auth()
     try:
         if headers:
-            return requests.get(url, headers=headers, params=params, timeout=REQUEST_TIMEOUT)
-        return requests.get(url, auth=auth, params=params, timeout=REQUEST_TIMEOUT)
+            return requests.get(
+                url, headers=headers, params=params, timeout=REQUEST_TIMEOUT
+            )
+        return requests.get(
+            url, auth=auth, params=params, timeout=REQUEST_TIMEOUT
+        )
     except requests.RequestException as e:
         logger.error("Network error during GET %s: %s", url, e)
         return None
 
 
-def safe_post(url: str, json_payload: Dict[str, Any]) -> Optional[requests.Response]:
+def safe_post(
+    url: str, json_payload: Dict[str, Any]
+) -> Optional[requests.Response]:
     headers, auth = get_request_auth()
     try:
         if headers:
-            return requests.post(url, headers=headers, json=json_payload, timeout=REQUEST_TIMEOUT)
-        return requests.post(url, auth=auth, json=json_payload, timeout=REQUEST_TIMEOUT)
+            return requests.post(
+                url,
+                headers=headers,
+                json=json_payload,
+                timeout=REQUEST_TIMEOUT,
+            )
+        return requests.post(
+            url, auth=auth, json=json_payload, timeout=REQUEST_TIMEOUT
+        )
     except requests.RequestException as e:
         logger.error("Network error during POST %s: %s", url, e)
         return None
@@ -94,7 +120,10 @@ def safe_json(response: Optional[requests.Response]) -> Any:
     try:
         return response.json()
     except ValueError:
-        logger.warning("Response from %s returned non-JSON body", getattr(response, "url", "<unknown>"))
+        logger.warning(
+            "Response from %s returned non-JSON body",
+            getattr(response, "url", "<unknown>"),
+        )
         return None
 
 
@@ -136,13 +165,18 @@ def sync_plan_from_file(filename: str = "plan.json") -> None:
     res = safe_get(url_events, params=params)
     existing_events = safe_json(res) or []
 
-    existing_keys = {f"{e.get('start_date_local', '')[:10]}_{e.get('name')}" for e in existing_events}
+    existing_keys = {
+        f"{e.get('start_date_local', '')[:10]}_{e.get('name')}"
+        for e in existing_events
+    }
 
     for item in planned_items:
         item_date = item.get("date")
         name = item.get("name")
         if not item_date or not name:
-            logger.warning("Skipping invalid plan entry (missing date/name): %s", item)
+            logger.warning(
+                "Skipping invalid plan entry (missing date/name): %s", item
+            )
             continue
 
         event_key = f"{item_date}_{name}"
@@ -158,12 +192,19 @@ def sync_plan_from_file(filename: str = "plan.json") -> None:
             }
             res_post = safe_post(url_events, json_payload=payload)
             if res_post is None:
-                logger.error("Failed to POST event for %s: network error", item_date)
+                logger.error(
+                    "Failed to POST event for %s: network error", item_date
+                )
                 continue
             if res_post.status_code in (200, 201):
                 logger.info("Uploaded new workout on %s: %s", item_date, name)
             else:
-                logger.error("Error uploading %s: %s %s", item_date, res_post.status_code, getattr(res_post, "text", ""))
+                logger.error(
+                    "Error uploading %s: %s %s",
+                    item_date,
+                    res_post.status_code,
+                    getattr(res_post, "text", ""),
+                )
         else:
             logger.info("Workout on %s (%s) already exists.", item_date, name)
 
@@ -174,7 +215,10 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     start_date = today - datetime.timedelta(days=10)
     end_date = today + datetime.timedelta(days=2)
 
-    wellness_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/wellness/{today.isoformat()}"
+    wellness_url = (
+            f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/"
+            f"wellness/{today.isoformat()}"
+    )
     res_wellness = safe_get(wellness_url)
     wellness_data = safe_json(res_wellness) or {}
 
@@ -187,7 +231,9 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
 
 
 # --- 4. GENERATE AI RECOMMENDATION ---
-def _shorten_events_for_prompt(events: List[Dict[str, Any]], max_chars: int = MAX_PROMPT_CHARS) -> str:
+def _shorten_events_for_prompt(
+    events: List[Dict[str, Any]], max_chars: int = MAX_PROMPT_CHARS
+) -> str:
     dumped = json.dumps(events, indent=2, ensure_ascii=False)
     if len(dumped) <= max_chars:
         return dumped
@@ -196,7 +242,9 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]], max_chars: int = MA
     return f"(Truncated to last {min(30, len(events))} events)\n{truncated}"
 
 
-def generate_ai_recommendation(wellness: Dict[str, Any], events: List[Dict[str, Any]]) -> str:
+def generate_ai_recommendation(
+    wellness: Dict[str, Any], events: List[Dict[str, Any]]
+) -> str:
     client = genai.Client(api_key=GEMINI_API_KEY)
 
     events_for_prompt = _shorten_events_for_prompt(events)
@@ -205,11 +253,11 @@ def generate_ai_recommendation(wellness: Dict[str, Any], events: List[Dict[str, 
 Jsi můj osobní vytrvalostní tréninkový AI kouč.
 
 **Můj kontext:**
-- Hlavní cíl: Maraton Luzern (25. 10. 2026) – cíl SUB 3:00 (Maratonské tempo MP: 4:12–4:18 min/km).
+- Hlavní cíl: Maraton Luzern (25. 10. 2026) – cíl SUB 3:00 (MP: 4:12–4:18 min/km).
 - Doplňkové akce:
-  * Uster Triatlon (23. 8. 2026 – 1.5 km OWS pod 30 min / 10 km RUN pod 40 min / tempo 4:00 min/km)
+  * Uster Triatlon (23. 8. 2026 – 1.5 km OWS <30m / 10 km RUN <40m / tempo 4:00 min/km)
   * Bodensee Radmarathon (12. 9. 2026 – 220 km na kole v Z2 jako objem na Ironmana)
-- Tréninková filozofie: Ben Parkes Level 4 (vysoký objem, Easy běhy v Z2: 4:52–5:24 min/km, MP intervaly, Long runy).
+- Tréninková filozofie: Ben Parkes Level 4 (vysoký objem, Easy Z2: 4:52–5:24 min/km).
 - Priorita: Běh má 100% prioritu. Kolo a plavání jsou doplňkový cross-training.
 
 **Aktuální data z mého účtu Intervals.icu (k dnešnímu dni):**
@@ -218,18 +266,20 @@ Jsi můj osobní vytrvalostní tréninkový AI kouč.
 - Fatigue / ATL: {wellness.get('atl', 'N/A')}
 - Klidový tep (RHR): {wellness.get('restingHR', 'N/A')}
 
-**Historie tréninků a naplánované tréninky (Posledních 10 dní + Plán na dnešek a zítřek):**
+**Historie tréninků a naplánované tréninky (Posledních 10 dní + Dnes a Zítřek):**
 {events_for_prompt}
 
 **Tůj úkol:**
 1. Porovnej naplánované tréninky s reálně odtrénovanými aktivitami za poslední týden.
-2. Zhodnoť stav mé únavy (TSB/CTL/ATL) v kontextu blížícho se Uster Triatlonu a maratonského cyklu.
+2. Zhodnoť stav mé únavy (TSB/CTL/ATL) v kontextu Uster Triatlonu a maratonského cyklu.
 3. Dej mi jasné, konkrétní a strukturované doporučení pro DNEŠNÍ DEN.
 4. Buď stručný, věcný, motivující a piš v češtině.
 """
 
     try:
-        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash", contents=prompt
+        )
     except Exception as e:
         logger.exception("Gemini API request failed: %s", e)
         raise RuntimeError(f"Gemini API error: {e}")
