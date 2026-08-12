@@ -267,7 +267,13 @@ def get_intervals_data() -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
                     # Pokud API vrátilo pole intervalů, uložíme ho do objektu
                     if isinstance(intervals_data, list):
                         single_data["icu_intervals"] = intervals_data
-                    elif isinstance(intervals_data, dict) and "intervals" in intervals_data:
+                    elif (
+                        isinstance(intervals_data, dict)
+                        and "intervals" in intervals_data
+                    ):
+                        single_data["icu_intervals"] = intervals_data[
+                            "intervals"
+                        ]
                         single_data["icu_intervals"] = intervals_data["intervals"]
 
                     single_data["is_completed_activity"] = True
