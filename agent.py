@@ -1,12 +1,33 @@
 import datetime
 import json
+import logging
 import os
+import smtplib
+import sys
+from email.mime.text import MIMEText
 from typing import Dict, Optional, Tuple
+
 from google import genai
 import requests
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# --- 1. HELPER PRO AUTORIZACI INTERVALS.ICU ---
+
+# --- 1. KONTROLA PROSTŘEDÍ (ENVIRONMENT VARIABLES) ---
+def validate_env_vars() -> None:
+    """Zkontroluje, zda jsou nastaveny všechny povinné proměnné prostředí."""
+    required_vars = ["INTERVALS_API_KEY", "GEMINI_API_KEY"]
+    missing_vars = [var for var in required_vars if not os.environ.get(var)]
+
+    if missing_vars:
+        logger.error(
+            f"❌ Chybí povinné proměnné prostředí: {', '.join(missing_vars)}"
+        )
+        sys.exit(1)
+
+
+# --- 2. HELPER PRO AUTORIZACI INTERVALS.ICU ---
 def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, str]]]:
     """Return (headers_dict or None, auth_tuple or None).
 
@@ -23,22 +44,28 @@ def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, st
     return None, None
 
 
-# --- 2. KONFIGURACE Z PROSTŘEDÍ ---
+# --- 3. KONFIGURACE Z PROSTŘEDÍ ---
 ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID", "i510990")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
+EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
-# --- 3. SYNCHRONIZACE TRÉNINKOVÉHO PLÁNU DO INTERVALS.ICU ---
+
+# --- 4. SYNCHRONIZACE TRÉNINKOVÉHO PLÁNU DO INTERVALS.ICU ---
 def sync_plan_from_file(filename="plan.json"):
     if not os.path.exists(filename):
-        print(f"⚠️ Soubor {filename} nenalezen, přeskakuji synchronizaci.")
+        logger.warning(
+            f"⚠️ Soubor {filename} nenalezen, přeskakuji synchronizaci."
+        )
         return
 
     with open(filename, "r", encoding="utf-8") as f:
         planned_items = json.load(f)
 
     if not planned_items:
-        print("⚠️ Soubor plan.json je prázdný.")
+        logger.warning("⚠️ Soubor plan.json je prázdný.")
         return
 
     all_dates = [item["date"] for item in planned_items]
@@ -75,20 +102,22 @@ def sync_plan_from_file(filename="plan.json"):
                 url_events, headers=headers, auth=auth, json=payload
             )
             if res_post.status_code in (200, 201):
-                print(f"✅ Nahraný nový trénink na {item_date}: {item['name']}")
+                logger.info(
+                    f"✅ Nahraný nový trénink na {item_date}: {item['name']}"
+                )
             else:
-                print(
+                logger.error(
                     f"❌ Chyba při nahrávání {item_date}: "
                     f"{res_post.status_code} {res_post.text}"
                 )
         else:
-            print(
+            logger.info(
                 f"ℹ️ Trénink na {item_date} ({item['name']}) "
                 f"už v kalendáři existuje."
             )
 
 
-# --- 4. ZÍSKÁNÍ DAT Z INTERVALS.ICU ---
+# --- 5. ZÍSKÁNÍ DAT Z INTERVALS.ICU ---
 def get_intervals_data():
     today = datetime.date.today()
     start_date = today - datetime.timedelta(days=10)
@@ -115,7 +144,7 @@ def get_intervals_data():
     return wellness_data, events_data
 
 
-# --- 5. GENEROVÁNÍ DOPORUČENÍ POMOCÍ GEMINI AI ---
+# --- 6. GENEROVÁNÍ DOPORUČENÍ POMOCÍ GEMINI AI ---
 def generate_ai_recommendation(wellness, events):
     client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -151,16 +180,44 @@ def generate_ai_recommendation(wellness, events):
     return response.text
 
 
+# --- 7. ODESLÁNÍ EMAILU ---
+def send_email(subject: str, body: str) -> bool:
+    if not (EMAIL_SENDER and EMAIL_PASSWORD and EMAIL_RECEIVER):
+        logger.error("Email not sent: missing email configuration.")
+        return False
+
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_SENDER
+    msg["To"] = EMAIL_RECEIVER
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_SENDER, [EMAIL_RECEIVER], msg.as_string())
+        logger.info("✉️ E-mail úspěšně odeslán!")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Chyba při odesílání e-mailu: {e}")
+        return False
+
+
 # --- HLAVNÍ SPUŠTĚNÍ ---
 if __name__ == "__main__":
-    print("1. Synchronizuji plánované tréninky do Intervals.icu...")
+    logger.info("0. Kontroluji proměnné prostředí...")
+    validate_env_vars()
+
+    logger.info("1. Synchronizuji plánované tréninky do Intervals.icu...")
     sync_plan_from_file("plan.json")
 
-    print("2. Stahuji data o únavě a aktivitách...")
+    logger.info("2. Stahuji data o únavě a aktivitách...")
     wellness_info, events_info = get_intervals_data()
 
-    print("3. Generuji AI doporučení...")
+    logger.info("3. Generuji AI doporučení...")
     report = generate_ai_recommendation(wellness_info, events_info)
 
-    print("\n--- AI REPORT ---")
-    print(report)
+    logger.info("4. Odesílám e-mail s reportem...")
+    today_str = datetime.date.today().strftime("%d. %m. %Y")
+    send_email(f"🏃‍♂️ Tréninkový report [{today_str}]", report)
+
+    logger.info("🚀 Vše hotovo!")
