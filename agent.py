@@ -316,7 +316,8 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                     l_hr = lap.get("average_heartrate", "N/A")
                     l_max_hr = lap.get("max_heartrate", "N/A")
                     l_power = lap.get("average_watts", "N/A")
-                    p_hr = lap.get("power_hr_ratio", lap.get("efficiency_factor", "N/A"))
+                    ef_val = lap.get("efficiency_factor", "N/A")
+                    p_hr = lap.get("power_hr_ratio", ef_val)
 
                     line += (
                         f"\n      Lap {idx}: {lap_dist:.2f}km | GAP: {gap} | "
@@ -367,8 +368,10 @@ vyhodnotit mé tréninky na základě hloubkových dat z Intervals.icu.
     výhradně **GAP (Grade Adjusted Pace)**.
 4. **Převýšení (Altitude/Gradient):** Zohledni klesání a stoupání, které vysvětlují
    změny výkonu/tempa.
-5. **Heart Rate Drift & Efektivita:** Sleduj vývoj tepu (Avg HR/Max HR) napříč úseky (Laps).
-   Rostoucí tep při stejném GAP znamená kardiovaskulární drift/únavu. Sleduj i koeficient Power/HR a kadenci.
+5. **Heart Rate Drift & Efektivita:** Sleduj vývoj tepu (Avg HR/Max HR)
+   napříč úseky (Laps).
+   Rostoucí tep při stejném GAP znamená kardiovaskulární drift/únavu.
+   Sleduj i koeficient Power/HR a kadenci.
 
 ---
 
@@ -380,7 +383,8 @@ vyhodnotit mé tréninky na základě hloubkových dat z Intervals.icu.
 - Zhodnocení TSB, CTL, ATL a RHR k dnešnímu dni.
 
 ### 🎯 2. Hloubková analýza úseků (Laps Analysis)
-- Hodnocení **GAP** na jednotlivých úsecích vs. plánované tempo (MP 4:12–4:18 / Easy 4:52–5:24).
+- Hodnocení **GAP** na jednotlivých úsecích vs. plánované tempo
+  (MP 4:12–4:18 / Easy 4:52–5:24).
 - Analýza převýšení, reakce tepové frekvence (HR drift) a stability kadence.
 - Hodnocení běžecké efektivity (Power / HR ratio).
 
