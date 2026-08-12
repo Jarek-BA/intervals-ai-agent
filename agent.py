@@ -343,7 +343,8 @@ přesnou a strukturovanou analýzu mého tréninku.
 - Hodnocení tepovky, driftu a efektivita (EF / Power/HR).
 
 ### 📋 3. Verdikt a doporučení pro DNEŠNÍ DEN ({today.isoformat()})
-- Jasný pokyn, co DNEŠKA přesně odtrénovat nebo jak upravit plán s ohledem na únavu a včerejší výkon.
+- Jasný pokyn, co DNEŠKA přesně odtrénovat nebo jak upravit plán 
+  s ohledem na únavu a včerejší výkon.
 
 Buď konkrétní, objektivní, pracuj s reálnými čísly z úseků a piš v češtině.
 """
@@ -364,6 +365,7 @@ Buď konkrétní, objektivní, pracuj s reálnými čísly z úseků a piš v č
             text = str(text)
 
     return text
+
 
 # --- 5. SEND EMAIL ---
 def send_email(subject: str, body: str) -> bool:
