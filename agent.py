@@ -252,7 +252,7 @@ def generate_ai_recommendation(
 
     events_for_prompt = _shorten_events_for_prompt(events)
 
-prompt = f"""
+    prompt = f"""
 Jsi můj osobní vytrvalostní tréninkový AI kouč.
 
 **Můj kontext:**
@@ -279,7 +279,7 @@ Jsi můj osobní vytrvalostní tréninkový AI kouč.
 4. Buď stručný, věcný, motivující a piš v češtině.
 """
 
-try:
+    try:
         response = client.models.generate_content(
             model="gemini-2.5-flash", contents=prompt
         )
