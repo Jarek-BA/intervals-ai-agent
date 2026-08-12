@@ -51,6 +51,7 @@ def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, st
         return {"Authorization": f"Bearer {intervals_key}"}, None
     return None, None
 
+
 def validate_env_vars() -> None:
     """Validate required environment variables and exit
     with a helpful message if missing.
@@ -73,6 +74,7 @@ def validate_env_vars() -> None:
             "Ensure EMAIL_SENDER, EMAIL_PASSWORD, "
             "and EMAIL_RECEIVER are set."
         )
+
 
 # --- HTTP helpers with timeouts and safe JSON decoding ---
 def safe_get(
