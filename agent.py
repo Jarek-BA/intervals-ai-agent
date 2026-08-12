@@ -52,8 +52,8 @@ def sync_plan_from_file(filename="plan.json"):
         event_key = f"{item_date}_{item['name']}"
         
         if event_key not in existing_keys:
-                    workout_text = item["description"]
-                    
+            workout_text = item["description"]
+
             payload = {
                 "start_date_local": f"{item_date}T07:00:00",
                 "type": item["type"],
