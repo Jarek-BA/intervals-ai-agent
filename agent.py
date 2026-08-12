@@ -282,7 +282,7 @@ Jsi můj osobní vytrvalostní tréninkový AI kouč.
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash", contents=prompt
+            model="gemini-2.0-flash", contents=prompt
         )
     except Exception as e:
         logger.exception("Gemini API request failed: %s", e)
