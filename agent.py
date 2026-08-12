@@ -52,13 +52,17 @@ def sync_plan_from_file(filename="plan.json"):
         event_key = f"{item_date}_{item['name']}"
         
         if event_key not in existing_keys:
-            # KLÍČOVÁ OPRAVA: Přidáno "category": "WORKOUT"
+                    workout_text = item["description"]
+                    
             payload = {
                 "start_date_local": f"{item_date}T07:00:00",
                 "type": item["type"],
                 "category": "WORKOUT",
                 "name": item["name"],
-                "description": item["description"]
+                "description": workout_text,
+                "workout_doc": {
+                    "description": workout_text
+                }
             }
             res_post = requests.post(url_events, auth=AUTH, json=payload)
             if res_post.status_code in (200, 201):
