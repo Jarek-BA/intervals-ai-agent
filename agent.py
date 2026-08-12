@@ -29,9 +29,11 @@ def get_intervals_data():
     
     # b) Stáhnutí Eventů/Tréninků (Včera a Dnes)
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
+    start_date = today - datetime.timedelta(days=30)
+    
     params = {
-        "oldest": yesterday.isoformat(),
-        "newest": today.isoformat()
+        "oldest": start_date.isoformat(),
+        "newest": (today + datetime.timedelta(days=2)).isoformat() # načte i zítřek/pozítří v kalendáři!
     }
     res_events = requests.get(events_url, auth=auth, params=params)
     events_data = res_events.json() if res_events.status_code == 200 else []
@@ -45,9 +47,13 @@ def generate_ai_recommendation(wellness, events):
     prompt = f"""
     Jsi můj osobní vytrvalostní tréninkový AI kouč.
     
-    **Můj kontext:**
-    - Hlavní cíle: Maraton Luzern (cíl pod 3h), Uster Triatlon (1.5 km plavání / 10 km běh), 220 km Bodensee na kole.
-    - Metodika: Držím se tréninkové filosofie Bena Parkse (Easy runs Z2, MP intervaly, Long runy).
+    **Dlouhodobý kontext a plán (15týdenní cyklus Ben Parkes Level 4):**
+    - Hlavní cíl: Maraton Luzern (25. 10. 2026) – cíl SUB 3:00 (Cílové MP: 4:12–4:18 min/km).
+    - Doplňkové akce: 
+      * Uster Triatlon (1.5 km plavání / 10 km běh pod 40 min)
+      * Bodensee Radmarathon (12. 9. 2026 – 220 km na kole v Z2 jako objem na Ironmana)
+    - Tréninková filozofie: Držím se plánu Ben Parkes Level 4 (vysoký objem, dvoufázové tréninky AM/PM, poctivé Easy běhy v Z2, MP úseky a dlouhé běhy).
+    - Strategie cross-trainingu: Kolo a plavání doplňují běh (nebourají běžecký objem), běh má absolutní prioritu.
     
     **Aktuální data z mého účtu Intervals.icu (k dnešnímu dni):**
     - Form / TSB (Čerstvost/Únava): {wellness.get('form', 'N/A')}
