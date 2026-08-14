@@ -31,13 +31,13 @@ EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
 # Datum začátku 1. týdne podle Bena Parkese (Pondělí 1. týdne)
-# Změň podle toho, kdy tvůj 15-týdenní blok reálně začal!
 PLAN_START_DATE = os.environ.get("PLAN_START_DATE", "2026-07-13")
 
 BASIC_AUTH_TUPLE = ("API_KEY", INTERVALS_API_KEY)
 
 
-def get_request_auth() -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, str]]]:
+def get_request_auth(
+) -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, str]]]:
     intervals_key = os.environ.get("INTERVALS_API_KEY")
     if os.environ.get("INTERVALS_USE_BASIC_AUTH"):
         return None, ("API_KEY", intervals_key)
@@ -134,7 +134,9 @@ def get_current_plan_context(plan_data: dict, start_date_str: str) -> dict:
     if not plan_data or "weeks" not in plan_data:
         return {}
     try:
-        start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        start_date = datetime.datetime.strptime(
+            start_date_str, "%Y-%m-%d"
+        ).date()
     except ValueError:
         logger.error("Neplatný formát PLAN_START_DATE: %s", start_date_str)
         return {}
@@ -142,15 +144,21 @@ def get_current_plan_context(plan_data: dict, start_date_str: str) -> dict:
     today = datetime.date.today()
     days_diff = (today - start_date).days
     current_week_num = (days_diff // 7) + 1
-    total_weeks = plan_data.get("plan_metadata", {}).get("duration_weeks", 15)
+    total_weeks = plan_data.get("plan_metadata", {}).get(
+        "duration_weeks", 15
+    )
 
-    week_info = next((w for w in plan_data["weeks"] if w["week"] == current_week_num), None)
+    week_info = next(
+        (w for w in plan_data["weeks"] if w["week"] == current_week_num), None
+    )
 
     return {
         "current_week_num": current_week_num,
         "total_weeks": total_weeks,
         "week_details": week_info,
-        "pace_chart": plan_data.get("plan_metadata", {}).get("pace_chart_km", {})
+        "pace_chart": plan_data.get("plan_metadata", {}).get(
+            "pace_chart_km", {}
+        ),
     }
 
 
@@ -219,26 +227,38 @@ def sync_plan_from_file(filename: str = "plan.json") -> None:
 
 
 # --- 3. GET INTERVALS DATA ---
-def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]]:
+def get_intervals_data() -> Tuple[
+    List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]
+]:
     today = datetime.date.today()
     start_14d = today - datetime.timedelta(days=14)
     start_30d = today - datetime.timedelta(days=30)
     end_date = today + datetime.timedelta(days=2)
 
-    # 1. Wellness za posledních 30 dní (dovolí spočítat RHR baseline a trendy)
-    wellness_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/wellness"
-    params_wellness = {"oldest": start_30d.isoformat(), "newest": today.isoformat()}
+    # 1. Wellness za posledních 30 dní
+    wellness_url = (
+        f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/wellness"
+    )
+    params_wellness = {
+        "oldest": start_30d.isoformat(),
+        "newest": today.isoformat(),
+    }
     res_wellness = safe_get(wellness_url, params=params_wellness)
     wellness_history = safe_json(res_wellness) or []
 
     # 2. Kalendář (Events / Planned Workouts)
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
-    params_events = {"oldest": start_14d.isoformat(), "newest": end_date.isoformat()}
+    params_events = {
+        "oldest": start_14d.isoformat(),
+        "newest": end_date.isoformat(),
+    }
     res_events = safe_get(events_url, params=params_events)
     events_data = safe_json(res_events) or []
 
     # 3. Odtrénované aktivity
-    activities_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities"
+    activities_url = (
+        f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities"
+    )
     res_act = safe_get(activities_url, params=params_events)
     activities_list = safe_json(res_act) or []
 
@@ -251,7 +271,8 @@ def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Di
             act_id = act.get("id")
             if act_id:
                 single_act_url = (
-                    f"https://intervals.icu/api/v1/activity/{act_id}?intervals=true"
+                    f"https://intervals.icu/api/v1/activity/{act_id}"
+                    "?intervals=true"
                 )
                 res_single = safe_get(single_act_url)
                 single_data = safe_json(res_single)
@@ -277,11 +298,15 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
         if not isinstance(e, dict):
             continue
 
-        start_date = (e.get("start_date_local") or e.get("start_date") or "")[:10]
+        start_date = (
+            e.get("start_date_local") or e.get("start_date") or ""
+        )[:10]
         name = e.get("name", "Bez názvu")
         category = e.get("category") or e.get("type", "")
 
-        is_completed = e.get("is_completed_activity", False) or (e.get("type") == "Activity")
+        is_completed = e.get("is_completed_activity", False) or (
+            e.get("type") == "Activity"
+        )
         status_str = (
             "✅ REÁLNĚ ODTRÉNOVÁNO" if is_completed else "📅 POUZE NAPLÁNOVÁNO"
         )
@@ -315,10 +340,18 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                         continue
 
                     raw_dist = lap.get("distance")
-                    lap_dist = (float(raw_dist) / 1000.0) if raw_dist is not None else 0.0
+                    lap_dist = (
+                        (float(raw_dist) / 1000.0)
+                        if raw_dist is not None
+                        else 0.0
+                    )
 
-                    raw_moving = lap.get("moving_time") or lap.get("elapsed_time")
-                    lap_moving = float(raw_moving) if raw_moving is not None else 0.0
+                    raw_moving = (
+                        lap.get("moving_time") or lap.get("elapsed_time")
+                    )
+                    lap_moving = (
+                        float(raw_moving) if raw_moving is not None else 0.0
+                    )
 
                     if lap_dist > 0 and lap_moving > 0:
                         pace_seconds = lap_moving / lap_dist
@@ -331,15 +364,20 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                     gap = lap.get("gap")
                     gap_str = f"{gap}" if gap else pace_str
 
-                    alt = lap.get("total_elevation_gain", lap.get("altitude_gain", 0))
+                    alt = lap.get(
+                        "total_elevation_gain", lap.get("altitude_gain", 0)
+                    )
                     cadence = lap.get("average_cadence", "N/A")
                     l_hr = lap.get("average_heartrate", "N/A")
-                    label = lap.get("label") or lap.get("type") or f"Úsek {idx}"
+                    label = (
+                        lap.get("label") or lap.get("type") or f"Úsek {idx}"
+                    )
 
                     line += (
                         f"\n      * {label} ({lap_dist:.2f} km): "
                         f"GAP/Tempo: {gap_str} | "
-                        f"HR: {l_hr} bpm | Kadence: {cadence} spm | Převýšení: +{alt}m"
+                        f"HR: {l_hr} bpm | Kadence: {cadence} spm | "
+                        f"Převýšení: +{alt}m"
                     )
             else:
                 line += "\n   -> Detailní úseky nebyly nalezeny."
@@ -359,20 +397,29 @@ def generate_ai_recommendation(
 
     events_for_prompt = _shorten_events_for_prompt(events)
 
-    # Najdeme dnešní wellness záznam
     today_str = today.isoformat()
-    today_wellness = next((w for w in wellness_history if w.get("id") == today_str), {})
+    today_wellness = next(
+        (w for w in wellness_history if w.get("id") == today_str), {}
+    )
+
+    curr_week = plan_context.get("current_week_num", "N/A")
+    tot_weeks = plan_context.get("total_weeks", 15)
+    week_details_str = json.dumps(
+        plan_context.get("week_details", {}), ensure_ascii=False
+    )
+    pace_chart_str = json.dumps(
+        plan_context.get("pace_chart", {}), ensure_ascii=False
+    )
 
     prompt = f"""
-Jsi špičkový elity běžecký trenér a fyziolog. Tvým úkolem je provádět komplexní analytické hodnocení přípravy na maraton.
-Tento report generuješ VEČER ve 22:59 po dokončení celého dne.
+Jsi špičkový elity běžecký trenér a fyziolog. Tento report generuješ VEČER ve 22:59 po dokončení celého dne.
 
 **DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
 
 **PLÁN BEN PARKES (LEVEL 4 ADVANCED) & KONTEXT:**
-- Aktuální týden plánu: {plan_context.get('current_week_num', 'N/A')} z {plan_context.get('total_weeks', 15)}
-- Detaily aktuálního týdne: {json.dumps(plan_context.get('week_details', {}), ensure_ascii=False)}
-- Cílová tempa podle Ben Parkes Pace Chartu: {json.dumps(plan_context.get('pace_chart', {}), ensure_ascii=False)}
+- Aktuální týden plánu: {curr_week} z {tot_weeks}
+- Detaily aktuálního týdne: {week_details_str}
+- Cílová tempa podle Ben Parkes Pace Chartu: {pace_chart_str}
 
 **DEFINICE ZÓN INTERVALS.ICU:**
 - Recovery: > 5:25 min/km
@@ -432,8 +479,10 @@ def send_email(subject: str, markdown_content: str) -> bool:
 
     full_html = (
         "<html>\n"
-        '  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">\n'
-        '    <div style="max-width: 650px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">\n'
+        '  <body style="font-family: Arial, sans-serif; line-height: 1.6; '
+        'color: #333;">\n'
+        '    <div style="max-width: 650px; margin: 0 auto; padding: 20px; '
+        'border: 1px solid #e0e0e0; border-radius: 8px;">\n'
         f"        {html_body}\n"
         "    </div>\n"
         "  </body>\n"
@@ -468,12 +517,16 @@ def main() -> None:
     logger.info("1. Syncing planned workouts to Intervals.icu...")
     sync_plan_from_file("plan.json")
 
-    logger.info("2. Fetching wellness, 14-day activities and Ben Parkes plan context...")
+    logger.info(
+        "2. Fetching wellness, 14-day activities and Ben Parkes plan..."
+    )
     wellness_history, events, plan_context = get_intervals_data()
 
     logger.info("3. Generating AI recommendation with Macro & Micro analysis...")
     try:
-        report = generate_ai_recommendation(wellness_history, events, plan_context)
+        report = generate_ai_recommendation(
+            wellness_history, events, plan_context
+        )
     except Exception as e:
         logger.error("AI recommendation generation failed: %s", e)
         return
