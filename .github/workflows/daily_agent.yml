@@ -2,8 +2,10 @@ name: Daily Training Agent
 
 on:
   schedule:
-    # Běží každý den v 05:00 UTC (cca 6:00/7:00 ráno švýcarského času)
-    - cron: '0 5 * * *'
+on:
+  schedule:
+    # Běží každý den ve 20:59 UTC (což je 22:59 švýcarského času v létě)
+    - cron: '59 20 * * *'
   workflow_dispatch: # Umožní spustit ručně tlačítkem pro testování
 
 jobs:
@@ -33,4 +35,5 @@ jobs:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+          PLAN_START_DATE: ${{ secrets.PLAN_START_DATE }}
         run: python agent.py
