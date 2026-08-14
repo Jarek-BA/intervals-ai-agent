@@ -1,0 +1,225 @@
+{
+  "plan_metadata": {
+    "name": "Ben Parkes Marathon Level 4 Advanced",
+    "target_time_range": "2h55m - 3h15m",
+    "duration_weeks": 15,
+    "pace_chart_km": {
+      "easy_pace": "5:00 - 5:30 min/km",
+      "marathon_pace_mp": "4:05 - 4:35 min/km",
+      "tempo_pace": "3:50 - 4:15 min/km",
+      "interval_pace": "3:30 - 3:55 min/km"
+    }
+  },
+  "weeks": [
+    {
+      "week": 1,
+      "phase": "Prep",
+      "target_distance_km": 68,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "10km total: 2km Easy, 10x 400m @ Interval Pace w/ 200m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "10km Easy + 4 Strides + 30m Strength Circuit 1"},
+        "Thu": {"type": "Tempo", "description": "12km total: 2km Easy, 8km @ Tempo Pace, 2km Easy"},
+        "Fri": {"type": "Easy", "description": "8km Easy"},
+        "Sat": {"type": "Easy", "description": "8km Easy"},
+        "Sun": {"type": "Long Run", "description": "20km Long Run"}
+      }
+    },
+    {
+      "week": 2,
+      "phase": "Prep",
+      "target_distance_km": 72,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "11km total: 2km Easy, 6x 800m @ Interval Pace w/ 400m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "10km Easy + 4 Strides + 30m Strength Circuit 2"},
+        "Thu": {"type": "Easy", "description": "12km Easy"},
+        "Fri": {"type": "Easy", "description": "8km Easy"},
+        "Sat": {"type": "Easy", "description": "9km Easy"},
+        "Sun": {"type": "Long Run", "description": "22km Long Run"}
+      }
+    },
+    {
+      "week": 3,
+      "phase": "Prep",
+      "target_distance_km": 77,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "12km total: 2km Easy, 5x 1km @ Interval Pace w/ 400m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "11km Easy + 4 Strides + 30m Strength Circuit 3"},
+        "Thu": {"type": "Tempo", "description": "14km total: 2km Easy, 10km @ Tempo Pace, 2km Easy"},
+        "Fri": {"type": "Easy", "description": "9km Easy"},
+        "Sat": {"type": "Easy", "description": "9km Easy"},
+        "Sun": {"type": "Long Run", "description": "22km Long Run"}
+      }
+    },
+    {
+      "week": 4,
+      "phase": "Prep",
+      "target_distance_km": 82,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "12km total: 2km Easy, 10x 2min @ Interval Pace w/ 1min jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "12km Easy + 4 Strides + 30m Strength Circuit 1"},
+        "Thu": {"type": "Easy", "description": "13km Easy"},
+        "Fri": {"type": "Easy", "description": "9km Easy"},
+        "Sat": {"type": "Easy", "description": "10km Easy"},
+        "Sun": {"type": "Long Run", "description": "26km Long Run (Inc 8km @ MP)"}
+      }
+    },
+    {
+      "week": 5,
+      "phase": "Recovery",
+      "target_distance_km": 60,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "9km total: 2km Easy, 8x 400m @ Interval Pace w/ 200m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "9km Easy + 4 Strides + 30m Strength Circuit 2"},
+        "Thu": {"type": "Easy", "description": "10km Easy"},
+        "Fri": {"type": "Easy", "description": "7km Easy"},
+        "Sat": {"type": "Easy", "description": "7km Easy"},
+        "Sun": {"type": "Long Run", "description": "18km Long Run"}
+      }
+    },
+    {
+      "week": 6,
+      "phase": "Build",
+      "target_distance_km": 85,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "13km total: 2km Easy, 4x 1.5km @ Interval Pace w/ 400m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "12km Easy + 4 Strides + 30m Strength Circuit 3"},
+        "Thu": {"type": "Tempo", "description": "15km total: 2km Easy, 11km @ Tempo Pace, 2km Easy"},
+        "Fri": {"type": "Easy", "description": "9km Easy"},
+        "Sat": {"type": "Easy", "description": "10km Easy"},
+        "Sun": {"type": "Long Run", "description": "26km Long Run"}
+      }
+    },
+    {
+      "week": 7,
+      "phase": "Build",
+      "target_distance_km": 88,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "13km total: 2km Easy, 3x 2km @ Interval Pace w/ 500m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "12km Easy + 4 Strides + 30m Strength Circuit 1"},
+        "Thu": {"type": "Easy", "description": "14km Easy"},
+        "Fri": {"type": "Easy", "description": "9km Easy"},
+        "Sat": {"type": "Easy", "description": "12km Easy"},
+        "Sun": {"type": "Long Run", "description": "28km Long Run (Inc 10km @ MP)"}
+      }
+    },
+    {
+      "week": 8,
+      "phase": "Build",
+      "target_distance_km": 93,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "14km total: 2km Easy, 6x 1km @ Interval Pace w/ 400m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "13km Easy + 4 Strides + 30m Strength Circuit 2"},
+        "Thu": {"type": "Tempo", "description": "16km total: 2km Easy, 12km @ Tempo Pace, 2km Easy"},
+        "Fri": {"type": "Easy", "description": "10km Easy"},
+        "Sat": {"type": "Easy", "description": "12km Easy"},
+        "Sun": {"type": "Long Run", "description": "28km Long Run"}
+      }
+    },
+    {
+      "week": 9,
+      "phase": "Build",
+      "target_distance_km": 96,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "14km total: 2km Easy, 12x 2min @ Interval Pace w/ 1min jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "14km Easy + 4 Strides + 30m Strength Circuit 3"},
+        "Thu": {"type": "Easy", "description": "15km Easy"},
+        "Fri": {"type": "Easy", "description": "10km Easy"},
+        "Sat": {"type": "Easy", "description": "13km Easy"},
+        "Sun": {"type": "Long Run", "description": "30km Long Run (Inc 12km @ MP)"}
+      }
+    },
+    {
+      "week": 10,
+      "phase": "Recovery",
+      "target_distance_km": 68,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "10km total: 2km Easy, 8x 400m @ Interval Pace w/ 200m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "10km Easy + 4 Strides + 30m Strength Circuit 1"},
+        "Thu": {"type": "Easy", "description": "11km Easy"},
+        "Fri": {"type": "Easy", "description": "8km Easy"},
+        "Sat": {"type": "Easy", "description": "9km Easy"},
+        "Sun": {"type": "Long Run", "description": "20km Long Run"}
+      }
+    },
+    {
+      "week": 11,
+      "phase": "Build",
+      "target_distance_km": 100,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "15km total: 2km Easy, 5x 1.5km @ Interval Pace w/ 400m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "14km Easy + 4 Strides + 30m Strength Circuit 2"},
+        "Thu": {"type": "Tempo", "description": "17km total: 2km Easy, 13km @ Tempo Pace, 2km Easy"},
+        "Fri": {"type": "Easy", "description": "10km Easy"},
+        "Sat": {"type": "Easy", "description": "12km Easy"},
+        "Sun": {"type": "Long Run", "description": "32km Long Run"}
+      }
+    },
+    {
+      "week": 12,
+      "phase": "Build",
+      "target_distance_km": 102,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "15km total: 2km Easy, 4x 2km @ Interval Pace w/ 500m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "14km Easy + 4 Strides + 30m Strength Circuit 3"},
+        "Thu": {"type": "Easy", "description": "16km Easy"},
+        "Fri": {"type": "Easy", "description": "11km Easy"},
+        "Sat": {"type": "Easy", "description": "14km Easy"},
+        "Sun": {"type": "Long Run", "description": "32km Long Run (Inc 14km @ MP)"}
+      }
+    },
+    {
+      "week": 13,
+      "phase": "Taper",
+      "target_distance_km": 76,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "12km total: 2km Easy, 5x 1km @ Interval Pace w/ 400m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "11km Easy + 4 Strides + 30m Strength Circuit 1"},
+        "Thu": {"type": "Tempo", "description": "13km total: 2km Easy, 9km @ Tempo Pace, 2km Easy"},
+        "Fri": {"type": "Easy", "description": "8km Easy"},
+        "Sat": {"type": "Easy", "description": "10km Easy"},
+        "Sun": {"type": "Long Run", "description": "22km Long Run"}
+      }
+    },
+    {
+      "week": 14,
+      "phase": "Taper",
+      "target_distance_km": 53,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Speed", "description": "9km total: 2km Easy, 6x 400m @ Interval Pace w/ 200m jog, 2km Easy"},
+        "Wed": {"type": "Easy", "description": "8km Easy + 4 Strides"},
+        "Thu": {"type": "Easy", "description": "9km Easy (Inc 3km @ MP)"},
+        "Fri": {"type": "Easy", "description": "6km Easy"},
+        "Sat": {"type": "Easy", "description": "6km Easy"},
+        "Sun": {"type": "Long Run", "description": "15km Long Run"}
+      }
+    },
+    {
+      "week": 15,
+      "phase": "Race Week",
+      "target_distance_km": 60,
+      "schedule": {
+        "Mon": {"type": "Rest", "description": "Rest Day"},
+        "Tue": {"type": "Easy", "description": "7km Easy (Inc 4x 200m @ MP)"},
+        "Wed": {"type": "Easy", "description": "6km Easy"},
+        "Thu": {"type": "Easy", "description": "5km Easy"},
+        "Fri": {"type": "Rest", "description": "Rest Day"},
+        "Sat": {"type": "Easy", "description": "3km Shakeout Run"},
+        "Sun": {"type": "Race", "description": "MARATHON RACE DAY (42.2km)"}
+      }
+    }
+  ]
+}
