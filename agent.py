@@ -411,7 +411,7 @@ def generate_ai_recommendation(
         plan_context.get("pace_chart", {}), ensure_ascii=False
     )
 
-prompt = f"""\
+    prompt = f"""\
 # DENNÍ BĚŽECKÝ & FYZIOLOGICKÝ REPORT
 Jsi elitní běžecký trenér a sportovní fyziolog. Tento komplexní report
 generuješ v 22:59 na základě kompletních dat z právě ukončeného dne.
