@@ -411,53 +411,48 @@ def generate_ai_recommendation(
         plan_context.get("pace_chart", {}), ensure_ascii=False
     )
 
-    prompt = f"""
-Jsi špičkový elity běžecký trenér a fyziolog. Tento report generuješ VEČER ve 22:59 po dokončení celého dne.
-
-**DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
-
-**PLÁN BEN PARKES (LEVEL 4 ADVANCED) & KONTEXT:**
-- Aktuální týden plánu: {curr_week} z {tot_weeks}
-- Detaily aktuálního týdne: {week_details_str}
-- Cílová tempa podle Ben Parkes Pace Chartu: {pace_chart_str}
-
-**DEFINICE ZÓN INTERVALS.ICU:**
-- Recovery: > 5:25 min/km
-- Easy / Z2: 4:52 – 5:24 min/km
-- Marathon Pace (MP): 4:12 – 4:18 min/km
-- Threshold / Tempo: 3:59 – 4:06 min/km
-- VO2max / Intervals: 3:44 – 3:53 min/km
-
-**AKTUÁLNÍ DNEŠNÍ WELLNESS:**
-- Form (TSB): {today_wellness.get('form', 'N/A')}
-- Fitness (CTL): {today_wellness.get('ctl', 'N/A')}
-- Fatigue (ATL): {today_wellness.get('atl', 'N/A')}
-- Dnešní Klidový tep (RHR): {today_wellness.get('restingHR', 'N/A')}
-- HISTORIE WELLNESS (POSLEDNÍCH 30 DNÍ PRO ANALÝZU BASELINE A TRENDŮ):
-{json.dumps(wellness_history[-14:], ensure_ascii=False)}
-
-**HISTORIE A PLÁN AKTIVIT (POSLEDNÍCH 14 DNÍ):**
-{events_for_prompt}
-
----
-
-**POKYNY PRO GENEROVÁNÍ VEČERNÍHO REPORTU:**
-
-1. **REKAPITULACE DNEŠNÍHO DNE ({today.isoformat()}):**
-   - Vyhodnoť dnešní odběhanou aktivitu (Laps, GAP vs. plán Ben Parkes, TF drift, kadence, teplota).
-   - Pokud byl dnes naplánován trénink a v datech CHYBÍ (není jako "REÁLNĚ ODTRÉNOVÁNO"), vyhodnoť to jako vynechaný trénink a uprav podle toho zátěž.
-
-2. **MAKRO ANALÝZA A ADHERENCE K PLÁNU:**
-   - Zhodnoť stav týdenní kilometráže a trend CTL za posledních 30 dní.
-
-3. **REGENERACE & BIOMETRIKA:**
-   - Dnešní RHR porovnej s 30denním průměrem (baseline) a vyhodnoť celkový stav Formy (TSB).
-
-4. **VERDIKT A PŘÍPRAVA NA ZÍTŘEJŠÍ DEN:**
-   - Na základě dnešního odtrénovaného výkonu a nahromaděné únavy dej jasné pokyny a doporučení pro ZÍTŘEJŠÍ TRÉNINK / REGENERACI.
-
-Formátuj výstup v čistém Markdownu. Nikdy nepoužívej LaTeX syntaxi ($ ani ~).
-"""
+    prompt = (
+        "Jsi špičkový elity běžecký trenér a fyziolog. Tento report generuješ "
+        "VEČER ve 22:59 po dokončení celého dne.\n\n"
+        f"**DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})\n\n"
+        "**PLÁN BEN PARKES (LEVEL 4 ADVANCED) & KONTEXT:**\n"
+        f"- Aktuální týden plánu: {curr_week} z {tot_weeks}\n"
+        f"- Detaily aktuálního týdne: {week_details_str}\n"
+        f"- Cílová tempa podle Ben Parkes Pace Chartu: {pace_chart_str}\n\n"
+        "**DEFINICE ZÓN INTERVALS.ICU:**\n"
+        "- Recovery: > 5:25 min/km\n"
+        "- Easy / Z2: 4:52 – 5:24 min/km\n"
+        "- Marathon Pace (MP): 4:12 – 4:18 min/km\n"
+        "- Threshold / Tempo: 3:59 – 4:06 min/km\n"
+        "- VO2max / Intervals: 3:44 – 3:53 min/km\n\n"
+        "**AKTUÁLNÍ DNEŠNÍ WELLNESS:**\n"
+        f"- Form (TSB): {today_wellness.get('form', 'N/A')}\n"
+        f"- Fitness (CTL): {today_wellness.get('ctl', 'N/A')}\n"
+        f"- Fatigue (ATL): {today_wellness.get('atl', 'N/A')}\n"
+        f"- Dnešní Klidový tep (RHR): {today_wellness.get('restingHR', 'N/A')}\n"
+        "- HISTORIE WELLNESS (POSLEDNÍCH 30 DNÍ PRO ANALÝZU BASELINE A TRENDŮ):\n"
+        f"{json.dumps(wellness_history[-14:], ensure_ascii=False)}\n\n"
+        "**HISTORIE A PLÁN AKTIVIT (POSLEDNÍCH 14 DNÍ):**\n"
+        f"{events_for_prompt}\n\n"
+        "---\n\n"
+        "**POKYNY PRO GENEROVÁNÍ VEČERNÍHO REPORTU:**\n\n"
+        f"1. **REKAPITULACE DNEŠNÍHO DNE ({today.isoformat()}):**\n"
+        "   - Vyhodnoť dnešní odběhanou aktivitu (Laps, GAP vs. plán Ben Parkes, "
+        "TF drift, kadence, teplota).\n"
+        "   - Pokud byl dnes naplánován trénink a v datech CHYBÍ "
+        '(není jako "REÁLNĚ ODTRÉNOVÁNO"), vyhodnoť to jako vynechaný '
+        "trénink a uprav podle toho zátěž.\n\n"
+        "2. **MAKRO ANALÝZA A ADHERENCE K PLÁNU:**\n"
+        "   - Zhodnoť stav týdenní kilometráže a trend CTL za posledních 30 dní.\n\n"
+        "3. **REGENERACE & BIOMETRIKA:**\n"
+        "   - Dnešní RHR porovnej s 30denním průměrem (baseline) a vyhodnoť "
+        "celkový stav Formy (TSB).\n\n"
+        "4. **VERDIKT A PŘÍPRAVA NA ZÍTŘEJŠÍ DEN:**\n"
+        "   - Na základě dnešního odtrénovaného výkonu a nahromaděné únavy "
+        "dej jasné pokyny a doporučení pro ZÍTŘEJŠÍ TRÉNINK / REGENERACI.\n\n"
+        "Formátuj výstup v čistém Markdownu. Nikdy nepoužívej LaTeX syntaxi "
+        "($ ani ~).\n"
+    )
 
     try:
         interaction = client.interactions.create(
@@ -522,7 +517,9 @@ def main() -> None:
     )
     wellness_history, events, plan_context = get_intervals_data()
 
-    logger.info("3. Generating AI recommendation with Macro & Micro analysis...")
+    logger.info(
+        "3. Generating AI recommendation with Macro & Micro analysis..."
+    )
     try:
         report = generate_ai_recommendation(
             wellness_history, events, plan_context
