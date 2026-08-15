@@ -77,7 +77,7 @@
         "Wed": {"type": "Long Run", "description": "28km Long Run (15km Easy + 10km MP + 2km Cool Down)"},
         "Thu": {"type": "Recovery", "description": "6km Recovery"},
         "Fri": {"type": "Easy", "description": "6km Easy"},
-        "Sat": {"type": "Easy", "description": "6km Easy"},
+        "Sat": {"type": "Easy", "description": "8km Easy"},
         "Sun": {"type": "Easy", "description": "10km Easy + Strides"}
       }
     },
