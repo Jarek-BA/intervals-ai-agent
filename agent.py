@@ -227,13 +227,12 @@ def sync_plan_from_file(filename: str = "plan.json") -> None:
 
 
 # --- 3. GET INTERVALS DATA ---
-def get_intervals_data() -> Tuple[
-    List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]
-]:
+def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     today = datetime.date.today()
     start_14d = today - datetime.timedelta(days=14)
     start_30d = today - datetime.timedelta(days=30)
-    end_date = today + datetime.timedelta(days=2)
+    # Načteme události v kalendáři na 5 týdnů do budoucna z Intervals.icu
+    end_date = today + datetime.timedelta(days=35)
 
     # 1. Wellness za posledních 30 dní
     wellness_url = (
@@ -246,7 +245,7 @@ def get_intervals_data() -> Tuple[
     res_wellness = safe_get(wellness_url, params=params_wellness)
     wellness_history = safe_json(res_wellness) or []
 
-    # 2. Kalendář (Events / Planned Workouts)
+    # 2. Kalendář z Intervals.icu (-14 dní historie až +35 dní budoucí plán)
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
     params_events = {
         "oldest": start_14d.isoformat(),
@@ -255,15 +254,20 @@ def get_intervals_data() -> Tuple[
     res_events = safe_get(events_url, params=params_events)
     events_data = safe_json(res_events) or []
 
-    # 3. Odtrénované aktivity
+    # 3. Odtrénované aktivity za posledních 14 dní
     activities_url = (
         f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities"
     )
-    res_act = safe_get(activities_url, params=params_events)
+    params_activities = {
+        "oldest": start_14d.isoformat(),
+        "newest": today.isoformat(),
+    }
+    res_act = safe_get(activities_url, params=params_activities)
     activities_list = safe_json(res_act) or []
 
     enriched_events = []
 
+    # Připojíme detailní odtrénované aktivity (s úseky/laps)
     if isinstance(activities_list, list):
         for act in activities_list:
             if not isinstance(act, dict):
@@ -280,16 +284,13 @@ def get_intervals_data() -> Tuple[
                     single_data["is_completed_activity"] = True
                     enriched_events.append(single_data)
 
+    # Připojíme naplánované tréninky z kalendáře Intervals.icu
     if isinstance(events_data, list):
         for ev in events_data:
             if isinstance(ev, dict) and ev.get("type") != "Activity":
                 enriched_events.append(ev)
 
-    # Načtení Ben Parkes plánu
-    plan_data = load_ben_parkes_plan("ben_parkes_plan.json")
-    plan_context = get_current_plan_context(plan_data, PLAN_START_DATE)
-
-    return wellness_history, enriched_events, plan_context
+    return wellness_history, enriched_events
 
 
 def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
@@ -390,7 +391,6 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
 def generate_ai_recommendation(
     wellness_history: List[Dict[str, Any]],
     events: List[Dict[str, Any]],
-    plan_context: Dict[str, Any],
 ) -> str:
     client = genai.Client(api_key=GEMINI_API_KEY)
     today = datetime.date.today()
@@ -402,28 +402,13 @@ def generate_ai_recommendation(
         (w for w in wellness_history if w.get("id") == today_str), {}
     )
 
-    curr_week = plan_context.get("current_week_num", "N/A")
-    tot_weeks = plan_context.get("total_weeks", 15)
-    week_details_str = json.dumps(
-        plan_context.get("week_details", {}), ensure_ascii=False
-    )
-    pace_chart_str = json.dumps(
-        plan_context.get("pace_chart", {}), ensure_ascii=False
-    )
-
     prompt = f"""\
 # DENNÍ BĚŽECKÝ & FYZIOLOGICKÝ REPORT
-Jsi elitní běžecký trenér a sportovní fyziolog. Tento komplexní report
-generuješ v 22:59 na základě kompletních dat z právě ukončeného dne.
+Jsi elitní běžecký trenér a sportovní fyziolog. Tento komplexní report generuješ na základě dat z kalendáře Intervals.icu.
 
 **DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
 
-**PLÁN BEN PARKES (LEVEL 4 ADVANCED) & KONTEXT:**
-- Aktuální týden plánu: {curr_week} z {tot_weeks}
-- Detaily aktuálního týdne: {week_details_str}
-- Cílová tempa podle Ben Parkes Pace Chartu: {pace_chart_str}
-
-**DEFINICE ZÓN INTERVALS.ICU:**
+**DEFINICE CÍLOVÝCH TEMP / ZÓN (Cíl Maraton < 3:00):**
 - Recovery: > 5:25 min/km
 - Easy / Z2: 4:52 – 5:24 min/km
 - Marathon Pace (MP): 4:12 – 4:18 min/km
@@ -436,11 +421,28 @@ generuješ v 22:59 na základě kompletních dat z právě ukončeného dne.
 - Fatigue (ATL): {today_wellness.get('atl', 'N/A')}
 - Dnešní Klidový tep (RHR): {today_wellness.get('restingHR', 'N/A')}
 
-- HISTORIE WELLNESS (POSLEDNÍCH 30 DNÍ PRO ANALÝZU BASELINE A TRENDŮ):
+- HISTORIE WELLNESS (POSLEDNÍCH 14 DNÍ):
 {json.dumps(wellness_history[-14:], ensure_ascii=False)}
 
-**HISTORIE A PLÁN AKTIVIT (POSLEDNÍCH 14 DNÍ):**
+**KALENDÁŘ INTERVALS.ICU (ODTRÉNOVANÁ HISTORIE + NAPLÁNOVANÁ BUDOUCNOST):**
+DŮLEŽITÉ: Veškerý plán tréninků vychází výhradně ze záznamů níže v kalendáři Intervals.icu. Ignoruj jakékoliv dřívější šablony.
 {events_for_prompt}
+
+---
+
+**POKYNY PRO GENEROVÁNÍ REPORTU:**
+
+1. **REKAPITULACE DNEŠNÍHO DNE ({today.isoformat()}):**
+   - Vyhodnoť dnešní odběhanou aktivitu (odpovídá-li naplánovanému workoutu v Intervals.icu, tempa, TF, laps).
+   - Pokud byl na dnes naplánován trénink v Intervals.icu a chybí, vyhodnoť ho jako vynechaný.
+
+2. **MAKRO ANALÝZA A KONTROLA PLÁNU:**
+   - Vyhodnoť plnění aktuálního týdne podle naplánovaných událostí v Intervals.icu a trend zátěže (CTL/TSB).
+
+3. **VERDIKT A PŘÍPRAVA NA ZÍTŘEK:**
+   - Na základě dnešního výkonu a plánovaných nadcházejících tréninků z kalendáře dej doporučení na zítřek.
+
+Formátuj výstup v čistém Markdownu. Nepoužívej LaTeX syntaxi ($ ani ~).
 
 ---
 
@@ -521,16 +523,15 @@ def send_email(subject: str, markdown_content: str) -> bool:
 def main() -> None:
     validate_env_vars()
 
-    logger.info("1. Syncing planned workouts to Intervals.icu...")
-    sync_plan_from_file("plan.json")
+    # Krok 1 (lokální sync z plan.json) byl přeskočen — data se načítají přímo z Intervals.icu
 
     logger.info(
-        "2. Fetching wellness, 14-day activities and Ben Parkes plan..."
+        "1. Fetching wellness, 14-day activities, 5-week future events from Intervals.icu..."
     )
     wellness_history, events, plan_context = get_intervals_data()
 
     logger.info(
-        "3. Generating AI recommendation with Macro & Micro analysis..."
+        "2. Generating AI recommendation with Macro & Micro analysis..."
     )
     try:
         report = generate_ai_recommendation(
@@ -547,7 +548,7 @@ def main() -> None:
     today_str = datetime.date.today().strftime("%d. %m. %Y")
     subject = f"🏃‍♂️ Tréninkový report [{today_str}]"
 
-    logger.info("4. Sending email...")
+    logger.info("3. Sending email...")
     success = send_email(subject, report)
     if success:
         logger.info("All done: report sent.")
