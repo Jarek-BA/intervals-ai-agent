@@ -404,7 +404,8 @@ def generate_ai_recommendation(
 
     prompt = f"""\
 # DENNÍ BĚŽECKÝ & FYZIOLOGICKÝ REPORT
-Jsi elitní běžecký trenér a sportovní fyziolog. Tento komplexní report generuješ na základě dat z kalendáře Intervals.icu.
+Jsi elitní běžecký trenér a sportovní fyziolog. Tento komplexní report
+generuješ na základě dat z kalendáře Intervals.icu.
 
 **DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
 
@@ -425,7 +426,8 @@ Jsi elitní běžecký trenér a sportovní fyziolog. Tento komplexní report ge
 {json.dumps(wellness_history[-14:], ensure_ascii=False)}
 
 **KALENDÁŘ INTERVALS.ICU (ODTRÉNOVANÁ HISTORIE + NAPLÁNOVANÁ BUDOUCNOST):**
-DŮLEŽITÉ: Veškerý plán tréninků vychází výhradně ze záznamů níže v kalendáři Intervals.icu. Ignoruj jakékoliv dřívější šablony.
+DŮLEŽITÉ: Veškerý plán tréninků vychází výhradně ze záznamů níže v kalendáři
+Intervals.icu. Ignoruj jakékoliv dřívější šablony.
 {events_for_prompt}
 
 ---
@@ -433,39 +435,20 @@ DŮLEŽITÉ: Veškerý plán tréninků vychází výhradně ze záznamů níže
 **POKYNY PRO GENEROVÁNÍ REPORTU:**
 
 1. **REKAPITULACE DNEŠNÍHO DNE ({today.isoformat()}):**
-   - Vyhodnoť dnešní odběhanou aktivitu (odpovídá-li naplánovanému workoutu v Intervals.icu, tempa, TF, laps).
-   - Pokud byl na dnes naplánován trénink v Intervals.icu a chybí, vyhodnoť ho jako vynechaný.
+   - Vyhodnoť dnešní odběhanou aktivitu (odpovídá-li naplánovanému workoutu
+     v Intervals.icu, tempa, TF, laps).
+   - Pokud byl na dnes naplánován trénink v Intervals.icu a chybí, vyhodnoť
+     ho jako vynechaný.
 
 2. **MAKRO ANALÝZA A KONTROLA PLÁNU:**
-   - Vyhodnoť plnění aktuálního týdne podle naplánovaných událostí v Intervals.icu a trend zátěže (CTL/TSB).
+   - Vyhodnoť plnění aktuálního týdne podle naplánovaných událostí
+     v Intervals.icu a trend zátěže (CTL/TSB).
 
 3. **VERDIKT A PŘÍPRAVA NA ZÍTŘEK:**
-   - Na základě dnešního výkonu a plánovaných nadcházejících tréninků z kalendáře dej doporučení na zítřek.
+   - Na základě dnešního výkonu a plánovaných nadcházejících tréninků z
+     kalendáře dej doporučení na zítřek.
 
 Formátuj výstup v čistém Markdownu. Nepoužívej LaTeX syntaxi ($ ani ~).
-
----
-
-**POKYNY PRO GENEROVÁNÍ VEČERNÍHO REPORTU:**
-
-1. **REKAPITULACE DNEŠNÍHO DNE ({today.isoformat()}):**
-   - Vyhodnoť dnešní odběhanou aktivitu (Laps, GAP vs. plán Ben Parkes, TF drift,
-     kadence, teplota).
-   - Pokud byl dnes naplánován trénink a v datech CHYBÍ (není jako "REÁLNĚ
-     ODTRÉNOVÁNO"), vyhodnoť to jako vynechaný trénink a uprav podle toho zátěž.
-
-2. **MAKRO ANALÝZA A ADHERENCE K PLÁNU:**
-   - Zhodnoť stav týdenní kilometráže a trend CTL za posledních 30 dní.
-
-3. **REGENERACE & BIOMETRIKA:**
-   - Dnešní RHR porovnej s 30denním průměrem (baseline) a vyhodnoť celkový
-     stav Formy (TSB).
-
-4. **VERDIKT A PŘÍPRAVA NA ZÍTŘEJŠÍ DEN:**
-   - Na základě dnešního odtrénovaného výkonu a nahromaděné únavy dej jasné
-     pokyny a doporučení pro ZÍTŘEJŠÍ TRÉNINK / REGENERACI.
-
-Formátuj výstup v čistém Markdownu. Nikdy nepoužívej LaTeX syntaxi ($ ani ~).
 """
 
     try:
@@ -523,20 +506,18 @@ def send_email(subject: str, markdown_content: str) -> bool:
 def main() -> None:
     validate_env_vars()
 
-    # Krok 1 (lokální sync z plan.json) byl přeskočen — data se načítají přímo z Intervals.icu
-
     logger.info(
-        "1. Fetching wellness, 14-day activities, 5-week future events from Intervals.icu..."
+        "1. Fetching wellness, activities and planned events "
+        "from Intervals.icu..."
     )
-    wellness_history, events, plan_context = get_intervals_data()
+    wellness_history, events = get_intervals_data()
 
     logger.info(
-        "2. Generating AI recommendation with Macro & Micro analysis..."
+        "2. Generating AI recommendation with Macro & Micro "
+        "analysis..."
     )
     try:
-        report = generate_ai_recommendation(
-            wellness_history, events, plan_context
-        )
+        report = generate_ai_recommendation(wellness_history, events)
     except Exception as e:
         logger.error("AI recommendation generation failed: %s", e)
         return
