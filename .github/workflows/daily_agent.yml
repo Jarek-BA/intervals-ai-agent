@@ -3,7 +3,7 @@ name: Daily Training Agent
 on:
   schedule:
     # Běží každý den ve 20:59 UTC (což je 22:59 švýcarského času v létě)
-   # - cron: '59 20 * * *'
+   - cron: '59 19 * * *'
   workflow_dispatch: # Umožní spustit ručně tlačítkem pro testování
 
 jobs:
