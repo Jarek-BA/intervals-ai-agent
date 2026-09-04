@@ -406,6 +406,9 @@ def generate_ai_recommendation(
 # DENNÍ BĚŽECKÝ & FYZIOLOGICKÝ REPORT
 Jsi elitní běžecký trenér a sportovní fyziolog. Tento komplexní report
 generuješ na základě dat z kalendáře Intervals.icu.
+Pokud hodnotíš tréninkový den a je před půlnocí,
+ber v úvahu, že spánková data jsou z předcházejícího
+dne, a tedy ještě před tréninkem. 
 
 **DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
 
