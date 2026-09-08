@@ -133,7 +133,10 @@ def build_wellness_context(
         "sources": sources,
     }
 
+
 # --- GET INTERVALS DATA ---
+
+
 def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     today = datetime.date.today()
     start_14d = today - datetime.timedelta(days=14)
