@@ -1,6 +1,8 @@
 # intervals-ai-agent
 
-This small agent synchronizes a planned training schedule (plan.json) into Intervals.icu, fetches recent wellness and activity data, asks Gemini (via google-genai) for a short training recommendation, and emails it.
+This small agent fetches recent wellness, activity, and planned workout data
+from Intervals.icu, asks Gemini (via google-genai) for a training
+recommendation, and emails it.
 
 Usage
 -----
@@ -17,6 +19,14 @@ Optional:
 
 - INTERVALS_ATHLETE_ID — athlete id used for Intervals.icu API. Defaults to "i510990".
 - INTERVALS_USE_BASIC_AUTH — when set (to any value), the agent will use HTTP basic auth (requests' auth=(user,pass)) instead of the Authorization: Bearer header.
+- TRAINING_GOAL — the goal assessed by the report. Defaults to "Run a marathon in under 3:00".
+
+The GitHub Actions workflow runs every morning at 05:30 UTC. Wellness is
+selected per metric: a value from the evaluation date is preferred, and a
+missing value falls back to the previous date. The report includes the source
+date for every selected metric, so previous-day resting heart rate is not
+mistaken for a pre-workout measurement. Steps and other end-of-day metrics may
+still be incomplete in a morning report.
 
 Run locally
 -----------
