@@ -19,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 10  # seconds
-MAX_PROMPT_CHARS = 6000
+WELLNESS_MISSING_VALUES = (None, "")
 
 # --- 1. CONFIG FROM ENV ---
 ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID", "i510990")
@@ -30,10 +30,9 @@ EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
-# Datum začátku 1. týdne podle Bena Parkese (Pondělí 1. týdne)
-PLAN_START_DATE = os.environ.get("PLAN_START_DATE", "2026-07-13")
-
-BASIC_AUTH_TUPLE = ("API_KEY", INTERVALS_API_KEY)
+TRAINING_GOAL = os.environ.get(
+    "TRAINING_GOAL", "Run a marathon in under 3:00"
+)
 
 
 def get_request_auth(
@@ -84,26 +83,6 @@ def safe_get(
         return None
 
 
-def safe_post(
-    url: str, json_payload: Dict[str, Any]
-) -> Optional[requests.Response]:
-    headers, auth = get_request_auth()
-    try:
-        if headers:
-            return requests.post(
-                url,
-                headers=headers,
-                json=json_payload,
-                timeout=REQUEST_TIMEOUT,
-            )
-        return requests.post(
-            url, auth=auth, json=json_payload, timeout=REQUEST_TIMEOUT
-        )
-    except requests.RequestException as e:
-        logger.error("Network error during POST %s: %s", url, e)
-        return None
-
-
 def safe_json(response: Optional[requests.Response]) -> Any:
     if response is None:
         return None
@@ -117,124 +96,52 @@ def safe_json(response: Optional[requests.Response]) -> Any:
         return None
 
 
-# --- HELPER PRO BEN PARKES PLAN ---
-def load_ben_parkes_plan(filepath: str = "ben_parkes_plan.json") -> dict:
-    if not os.path.exists(filepath):
-        logger.warning("Soubor %s nenalezen.", filepath)
-        return {}
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        logger.error("Chyba při čtení %s: %s", filepath, e)
-        return {}
+def build_wellness_context(
+    wellness_history: List[Dict[str, Any]],
+    evaluation_date: Optional[datetime.date] = None,
+) -> Dict[str, Any]:
+    """Select each wellness metric independently and record its source date."""
+    evaluation_date = evaluation_date or datetime.date.today()
+    evaluation_date_str = evaluation_date.isoformat()
+    previous_date = evaluation_date - datetime.timedelta(days=1)
+    previous_date_str = previous_date.isoformat()
 
+    records = {
+        record.get("id"): record
+        for record in wellness_history
+        if isinstance(record, dict) and record.get("id")
+    }
+    current_record = records.get(evaluation_date_str, {})
+    previous_record = records.get(previous_date_str, {})
 
-def get_current_plan_context(plan_data: dict, start_date_str: str) -> dict:
-    if not plan_data or "weeks" not in plan_data:
-        return {}
-    try:
-        start_date = datetime.datetime.strptime(
-            start_date_str, "%Y-%m-%d"
-        ).date()
-    except ValueError:
-        logger.error("Neplatný formát PLAN_START_DATE: %s", start_date_str)
-        return {}
+    merged: Dict[str, Any] = {}
+    sources: Dict[str, str] = {}
+    for key in set(current_record) | set(previous_record):
+        current_value = current_record.get(key)
+        if current_value not in WELLNESS_MISSING_VALUES:
+            merged[key] = current_value
+            sources[key] = evaluation_date_str
+        elif previous_record.get(key) not in WELLNESS_MISSING_VALUES:
+            merged[key] = previous_record[key]
+            sources[key] = previous_date_str
 
-    today = datetime.date.today()
-    days_diff = (today - start_date).days
-    current_week_num = (days_diff // 7) + 1
-    total_weeks = plan_data.get("plan_metadata", {}).get(
-        "duration_weeks", 15
-    )
-
-    week_info = next(
-        (w for w in plan_data["weeks"] if w["week"] == current_week_num), None
-    )
-
+    merged["id"] = evaluation_date_str
     return {
-        "current_week_num": current_week_num,
-        "total_weeks": total_weeks,
-        "week_details": week_info,
-        "pace_chart": plan_data.get("plan_metadata", {}).get(
-            "pace_chart_km", {}
-        ),
+        "evaluation_date": evaluation_date_str,
+        "previous_date": previous_date_str,
+        "data": merged,
+        "sources": sources,
     }
 
-
-# --- 2. SYNC PLAN TO INTERVALS.ICU ---
-def sync_plan_from_file(filename: str = "plan.json") -> None:
-    if not os.path.exists(filename):
-        logger.info("File %s not found, skipping plan sync.", filename)
-        return
-
-    with open(filename, "r", encoding="utf-8") as f:
-        try:
-            planned_items = json.load(f)
-        except ValueError as e:
-            logger.error("Failed to parse %s: %s", filename, e)
-            return
-
-    if not planned_items:
-        logger.info("File %s is empty.", filename)
-        return
-
-    all_dates = [it.get("date") for it in planned_items if it.get("date")]
-    if not all_dates:
-        logger.info("No valid dates found in plan, skipping.")
-        return
-
-    min_date = min(all_dates)
-    max_date = max(all_dates)
-
-    url_events = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
-    params = {"oldest": min_date, "newest": max_date}
-
-    res = safe_get(url_events, params=params)
-    existing_events = safe_json(res) or []
-
-    existing_keys = set()
-    if isinstance(existing_events, list):
-        for e in existing_events:
-            if isinstance(e, dict):
-                start_date = e.get("start_date_local", "")[:10]
-                name = e.get("name", "")
-                if start_date and name:
-                    existing_keys.add(f"{start_date}_{name}")
-
-    for item in planned_items:
-        item_date = item.get("date")
-        name = item.get("name")
-        if not item_date or not name:
-            continue
-
-        event_key = f"{item_date}_{name}"
-        if event_key not in existing_keys:
-            workout_text = item.get("description", "")
-            payload = {
-                "start_date_local": f"{item_date}T07:00:00",
-                "type": item.get("type", "run"),
-                "category": "WORKOUT",
-                "name": name,
-                "description": workout_text,
-                "workout_doc": {"description": workout_text},
-            }
-            res_post = safe_post(url_events, json_payload=payload)
-            if res_post and res_post.status_code in (200, 201):
-                logger.info("Uploaded new workout on %s: %s", item_date, name)
-        else:
-            logger.info("Workout on %s (%s) already exists.", item_date, name)
-
-
-# --- 3. GET INTERVALS DATA ---
+# --- GET INTERVALS DATA ---
 def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     today = datetime.date.today()
     start_14d = today - datetime.timedelta(days=14)
     start_30d = today - datetime.timedelta(days=30)
-    # Načteme události v kalendáři na 5 týdnů do budoucna z Intervals.icu
+    # Load calendar events for the previous 14 days and next 35 days.
     end_date = today + datetime.timedelta(days=35)
 
-    # 1. Wellness za posledních 30 dní
+    # 1. Wellness for the last 30 days.
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/wellness"
     )
@@ -245,7 +152,7 @@ def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     res_wellness = safe_get(wellness_url, params=params_wellness)
     wellness_history = safe_json(res_wellness) or []
 
-    # 2. Kalendář z Intervals.icu (-14 dní historie až +35 dní budoucí plán)
+    # 2. Intervals.icu calendar (14 days of history and 35 days ahead).
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
     params_events = {
         "oldest": start_14d.isoformat(),
@@ -254,7 +161,7 @@ def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     res_events = safe_get(events_url, params=params_events)
     events_data = safe_json(res_events) or []
 
-    # 3. Odtrénované aktivity za posledních 14 dní
+    # 3. Completed activities for the last 14 days.
     activities_url = (
         f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities"
     )
@@ -267,7 +174,7 @@ def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
     enriched_events = []
 
-    # Připojíme detailní odtrénované aktivity (s úseky/laps)
+    # Add detailed completed activities, including laps.
     if isinstance(activities_list, list):
         for act in activities_list:
             if not isinstance(act, dict):
@@ -284,7 +191,7 @@ def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
                     single_data["is_completed_activity"] = True
                     enriched_events.append(single_data)
 
-    # Připojíme naplánované tréninky z kalendáře Intervals.icu
+    # Add planned workouts from the Intervals.icu calendar.
     if isinstance(events_data, list):
         for ev in events_data:
             if isinstance(ev, dict) and ev.get("type") != "Activity":
@@ -302,14 +209,14 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
         start_date = (
             e.get("start_date_local") or e.get("start_date") or ""
         )[:10]
-        name = e.get("name", "Bez názvu")
+        name = e.get("name", "Unnamed workout")
         category = e.get("category") or e.get("type", "")
 
         is_completed = e.get("is_completed_activity", False) or (
             e.get("type") == "Activity"
         )
         status_str = (
-            "✅ REÁLNĚ ODTRÉNOVÁNO" if is_completed else "📅 POUZE NAPLÁNOVÁNO"
+            "✅ COMPLETED" if is_completed else "📅 PLANNED ONLY"
         )
 
         line = f"• [{start_date}] {name} ({category}) - {status_str}"
@@ -322,9 +229,9 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
             avg_temp = e.get("average_temp", "N/A")
 
             line += (
-                f"\n   -> Celkem: {dist:.2f} km | Čas: {moving_time} min | "
+                f"\n   -> Total: {dist:.2f} km | Time: {moving_time} min | "
                 f"Avg HR: {avg_hr} bpm | Max HR: {max_hr} bpm | "
-                f"Teplota tréninku: {avg_temp} °C"
+                f"Workout temperature: {avg_temp} °C"
             )
 
             laps = (
@@ -335,7 +242,7 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
             )
 
             if isinstance(laps, list) and len(laps) > 0:
-                line += "\n   -> DETAILNÍ ÚSEKY / KOLA (LAPS):"
+                line += "\n   -> DETAILED INTERVALS / LAPS:"
                 for idx, lap in enumerate(laps, 1):
                     if not isinstance(lap, dict):
                         continue
@@ -371,17 +278,17 @@ def _shorten_events_for_prompt(events: List[Dict[str, Any]]) -> str:
                     cadence = lap.get("average_cadence", "N/A")
                     l_hr = lap.get("average_heartrate", "N/A")
                     label = (
-                        lap.get("label") or lap.get("type") or f"Úsek {idx}"
+                        lap.get("label") or lap.get("type") or f"Interval {idx}"
                     )
 
                     line += (
                         f"\n      * {label} ({lap_dist:.2f} km): "
                         f"GAP/Tempo: {gap_str} | "
                         f"HR: {l_hr} bpm | Kadence: {cadence} spm | "
-                        f"Převýšení: +{alt}m"
+                        f"Elevation gain: +{alt}m"
                     )
             else:
-                line += "\n   -> Detailní úseky nebyly nalezeny."
+                line += "\n   -> No detailed intervals were found."
 
         formatted_lines.append(line)
 
@@ -394,64 +301,77 @@ def generate_ai_recommendation(
 ) -> str:
     client = genai.Client(api_key=GEMINI_API_KEY)
     today = datetime.date.today()
+    execution_time = datetime.datetime.now().astimezone()
 
     events_for_prompt = _shorten_events_for_prompt(events)
 
-    today_str = today.isoformat()
-    today_wellness = next(
-        (w for w in wellness_history if w.get("id") == today_str), {}
+    wellness_context = build_wellness_context(
+        wellness_history, evaluation_date=today
     )
+    wellness = wellness_context["data"]
+    wellness_sources = wellness_context["sources"]
+    source_lines = "\n".join(
+        f"- {metric}: {source_date}"
+        for metric, source_date in sorted(wellness_sources.items())
+        if metric != "id"
+    ) or "- No wellness metrics available"
 
     prompt = f"""\
-# DENNÍ BĚŽECKÝ & FYZIOLOGICKÝ REPORT
-Jsi elitní běžecký trenér a sportovní fyziolog. Tento komplexní report
-generuješ na základě dat z kalendáře Intervals.icu.
-Pokud hodnotíš tréninkový den a je před půlnocí,
-ber v úvahu, že spánková data jsou z předcházejícího
-dne, a tedy ještě před tréninkem.
+# DAILY RUNNING AND PHYSIOLOGY REPORT
+You are an elite running coach and sports physiologist. Generate this report
+from the Intervals.icu calendar, wellness data, and completed activities.
 
-**DNEŠNÍ DATUM:** {today.isoformat()} ({today.strftime('%A')})
+**EXECUTION TIME:** {execution_time.isoformat()}
+**EVALUATION DATE:** {today.isoformat()} ({today.strftime('%A')})
+**TRAINING GOAL:** {TRAINING_GOAL}
 
-**DEFINICE CÍLOVÝCH TEMP / ZÓN (Cíl Maraton < 3:00):**
+**TARGET PACES / ZONES:**
 - Recovery: > 5:25 min/km
 - Easy / Z2: 4:52 – 5:24 min/km
 - Marathon Pace (MP): 4:12 – 4:18 min/km
 - Threshold / Tempo: 3:59 – 4:06 min/km
 - VO2max / Intervals: 3:44 – 3:53 min/km
 
-**AKTUÁLNÍ DNEŠNÍ WELLNESS:**
-- Form (TSB): {today_wellness.get('form', 'N/A')}
-- Fitness (CTL): {today_wellness.get('ctl', 'N/A')}
-- Fatigue (ATL): {today_wellness.get('atl', 'N/A')}
-- Dnešní Klidový tep (RHR): {today_wellness.get('restingHR', 'N/A')}
+**WELLNESS VALUES USED FOR THIS REPORT:**
+{json.dumps(wellness, ensure_ascii=False, sort_keys=True)}
 
-- HISTORIE WELLNESS (POSLEDNÍCH 14 DNÍ):
+**SOURCE DATE FOR EACH WELLNESS METRIC:**
+{source_lines}
+
+If a metric comes from the previous date, explicitly say so. Sleep and
+overnight metrics usually describe the night before the source date. Steps
+and resting heart rate may be incomplete early in the day. A previous-day
+resting heart rate can be a post-training response to the previous workout,
+especially when that workout happened in the morning; do not treat it as a
+pre-workout measurement for today's training.
+
+**WELLNESS HISTORY (LAST 14 DAYS):**
 {json.dumps(wellness_history[-14:], ensure_ascii=False)}
 
-**KALENDÁŘ INTERVALS.ICU (ODTRÉNOVANÁ HISTORIE + NAPLÁNOVANÁ BUDOUCNOST):**
-DŮLEŽITÉ: Veškerý plán tréninků vychází výhradně ze záznamů níže v kalendáři
-Intervals.icu. Ignoruj jakékoliv dřívější šablony.
+**INTERVALS.ICU CALENDAR (COMPLETED HISTORY + PLANNED FUTURE):**
+IMPORTANT: Derive the training plan only from the calendar records below.
+Ignore any older templates or assumptions.
 {events_for_prompt}
 
----
+**REPORT REQUIREMENTS:**
+1. Summarize today's completed activity, comparing it with today's planned
+    workout, pace, heart rate, and laps. If a planned workout is missing,
+    identify it as missed. If no activity is available yet, say that clearly.
+2. Analyze this week's plan completion and training-load trend using CTL,
+    ATL, and TSB where available.
+3. Assess whether the athlete is moving toward the stated goal. Cite the
+    evidence: recent pace, volume, workouts, load trend, and consistency.
+4. Recommend specific training adjustments that improve the probability of
+    achieving the goal without ignoring recovery or injury risk.
+5. If the goal appears unrealistic based on the collected data, provide a
+    data-based performance forecast. Explain the method and assumptions,
+    distinguish an estimate from a measured result, include uncertainty or a
+    plausible range, and say which additional data would improve it. Do not
+    invent data or promise a precise outcome.
+6. Give practical advice for tomorrow, accounting for the fact that this
+    report may run in the morning before today's complete wellness data exist.
 
-**POKYNY PRO GENEROVÁNÍ REPORTU:**
-
-1. **REKAPITULACE DNEŠNÍHO DNE ({today.isoformat()}):**
-   - Vyhodnoť dnešní odběhanou aktivitu (odpovídá-li naplánovanému workoutu
-     v Intervals.icu, tempa, TF, laps).
-   - Pokud byl na dnes naplánován trénink v Intervals.icu a chybí, vyhodnoť
-     ho jako vynechaný.
-
-2. **MAKRO ANALÝZA A KONTROLA PLÁNU:**
-   - Vyhodnoť plnění aktuálního týdne podle naplánovaných událostí
-     v Intervals.icu a trend zátěže (CTL/TSB).
-
-3. **VERDIKT A PŘÍPRAVA NA ZÍTŘEK:**
-   - Na základě dnešního výkonu a plánovaných nadcházejících tréninků z
-     kalendáře dej doporučení na zítřek.
-
-Formátuj výstup v čistém Markdownu. Nepoužívej LaTeX syntaxi ($ ani ~).
+Use clean Markdown. Do not use LaTeX syntax ($ or ~).
 """
 
     try:
@@ -530,7 +450,7 @@ def main() -> None:
         return
 
     today_str = datetime.date.today().strftime("%d. %m. %Y")
-    subject = f"🏃‍♂️ Tréninkový report [{today_str}]"
+    subject = f"🏃‍♂️ Training report [{today_str}]"
 
     logger.info("3. Sending email...")
     success = send_email(subject, report)
