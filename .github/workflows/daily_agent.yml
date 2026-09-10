@@ -2,8 +2,8 @@ name: Daily Training Agent
 
 on:
   schedule:
-    # Runs at 05:30 UTC: 07:30 Swiss summer time and 06:30 winter time.
-   - cron: '30 5 * * *'
+    # Runs at 03:21 UTC: 05:21 Swiss summer time and 04:21 winter time.
+   - cron: '21 3 * * *'
   workflow_dispatch: # Allow manual runs for testing.
 
 jobs:
