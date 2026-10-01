@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import markdown
 import requests
 from google import genai
+from google.genai import types
+from dotenv import load_dotenv
 
 # Basic config
 logging.basicConfig(
@@ -18,11 +20,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+load_dotenv()
+
 REQUEST_TIMEOUT = 10  # seconds
+GEMINI_REQUEST_TIMEOUT_MS = 120_000
+GEMINI_RETRY_ATTEMPTS = 3
 WELLNESS_MISSING_VALUES = (None, "")
 
 # --- 1. CONFIG FROM ENV ---
-ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID", "i510990")
+ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID")
 INTERVALS_API_KEY = os.environ.get("INTERVALS_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
@@ -30,15 +36,13 @@ EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
-TRAINING_GOAL = os.environ.get(
-    "TRAINING_GOAL", "Run a marathon in under 3:00"
-)
+TRAINING_GOAL = os.environ.get("TRAINING_GOAL")
 
 
 def get_request_auth(
 ) -> Tuple[Optional[Dict[str, str]], Optional[Tuple[str, str]]]:
     intervals_key = os.environ.get("INTERVALS_API_KEY")
-    if os.environ.get("INTERVALS_USE_BASIC_AUTH"):
+    if os.environ.get("INTERVALS_USE_BASIC_AUTH") and intervals_key:
         return None, ("API_KEY", intervals_key)
     if intervals_key:
         return {"Authorization": f"Bearer {intervals_key}"}, None
@@ -47,9 +51,11 @@ def get_request_auth(
 
 def validate_env_vars() -> None:
     missing = []
-    if not INTERVALS_API_KEY:
+    if not os.environ.get("INTERVALS_API_KEY"):
         missing.append("INTERVALS_API_KEY")
-    if not GEMINI_API_KEY:
+    if not os.environ.get("INTERVALS_ATHLETE_ID"):
+        missing.append("INTERVALS_ATHLETE_ID")
+    if not os.environ.get("GEMINI_API_KEY"):
         missing.append("GEMINI_API_KEY")
     if missing:
         logger.error(
@@ -72,12 +78,15 @@ def safe_get(
     headers, auth = get_request_auth()
     try:
         if headers:
-            return requests.get(
+            response = requests.get(
                 url, headers=headers, params=params, timeout=REQUEST_TIMEOUT
             )
-        return requests.get(
-            url, auth=auth, params=params, timeout=REQUEST_TIMEOUT
-        )
+        else:
+            response = requests.get(
+                url, auth=auth, params=params, timeout=REQUEST_TIMEOUT
+            )
+        response.raise_for_status()
+        return response
     except requests.RequestException as e:
         logger.error("Network error during GET %s: %s", url, e)
         return None
@@ -153,7 +162,11 @@ def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         "newest": today.isoformat(),
     }
     res_wellness = safe_get(wellness_url, params=params_wellness)
-    wellness_history = safe_json(res_wellness) or []
+    if res_wellness is None:
+        raise RuntimeError("Failed to fetch wellness data from Intervals.icu")
+    wellness_history = safe_json(res_wellness)
+    if not isinstance(wellness_history, list):
+        raise RuntimeError("Intervals.icu returned invalid wellness data")
 
     # 2. Intervals.icu calendar (14 days of history and 35 days ahead).
     events_url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/events"
@@ -162,7 +175,11 @@ def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         "newest": end_date.isoformat(),
     }
     res_events = safe_get(events_url, params=params_events)
-    events_data = safe_json(res_events) or []
+    if res_events is None:
+        raise RuntimeError("Failed to fetch calendar events from Intervals.icu")
+    events_data = safe_json(res_events)
+    if not isinstance(events_data, list):
+        raise RuntimeError("Intervals.icu returned invalid calendar data")
 
     # 3. Completed activities for the last 14 days.
     activities_url = (
@@ -173,7 +190,11 @@ def get_intervals_data() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         "newest": today.isoformat(),
     }
     res_act = safe_get(activities_url, params=params_activities)
-    activities_list = safe_json(res_act) or []
+    if res_act is None:
+        raise RuntimeError("Failed to fetch activities from Intervals.icu")
+    activities_list = safe_json(res_act)
+    if not isinstance(activities_list, list):
+        raise RuntimeError("Intervals.icu returned invalid activities data")
 
     enriched_events = []
 
@@ -302,7 +323,18 @@ def generate_ai_recommendation(
     wellness_history: List[Dict[str, Any]],
     events: List[Dict[str, Any]],
 ) -> str:
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = genai.Client(
+        api_key=GEMINI_API_KEY,
+        http_options=types.HttpOptions(
+            timeout=GEMINI_REQUEST_TIMEOUT_MS,
+            retry_options=types.HttpRetryOptions(
+                attempts=GEMINI_RETRY_ATTEMPTS,
+                initial_delay=2.0,
+                max_delay=15.0,
+                jitter=0.2,
+            ),
+        ),
+    )
     today = datetime.date.today()
     execution_time = datetime.datetime.now().astimezone()
 
@@ -326,7 +358,7 @@ from the Intervals.icu calendar, wellness data, and completed activities.
 
 **EXECUTION TIME:** {execution_time.isoformat()}
 **EVALUATION DATE:** {today.isoformat()} ({today.strftime('%A')})
-**TRAINING GOAL:** {TRAINING_GOAL}
+**TRAINING GOAL:** {TRAINING_GOAL or "Not specified"}
 
 **TARGET PACES / ZONES:**
 - Recovery: > 5:25 min/km
@@ -391,6 +423,17 @@ Use clean Markdown. Do not use LaTeX syntax ($ or ~).
 
 # --- 5. SEND EMAIL ---
 def send_email(subject: str, markdown_content: str) -> bool:
+    if (
+        EMAIL_SENDER is None
+        or EMAIL_PASSWORD is None
+        or EMAIL_RECEIVER is None
+    ):
+        logger.error("Email configuration is incomplete")
+        return False
+
+    sender = EMAIL_SENDER
+    password = EMAIL_PASSWORD
+    receiver = EMAIL_RECEIVER
     html_body = markdown.markdown(
         markdown_content, extensions=["tables", "fenced_code"]
     )
@@ -409,8 +452,8 @@ def send_email(subject: str, markdown_content: str) -> bool:
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = EMAIL_SENDER
-    msg["To"] = EMAIL_RECEIVER
+    msg["From"] = sender
+    msg["To"] = receiver
 
     part_text = MIMEText(markdown_content, "plain", "utf-8")
     part_html = MIMEText(full_html, "html", "utf-8")
@@ -420,8 +463,8 @@ def send_email(subject: str, markdown_content: str) -> bool:
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
+            server.login(sender, password)
+            server.sendmail(sender, receiver, msg.as_string())
         return True
     except Exception as e:
         logger.error("Failed to send email: %s", e)
@@ -446,11 +489,10 @@ def main() -> None:
         report = generate_ai_recommendation(wellness_history, events)
     except Exception as e:
         logger.error("AI recommendation generation failed: %s", e)
-        return
+        raise RuntimeError("AI recommendation generation failed") from e
 
     if not report or not str(report).strip():
-        logger.warning("Empty report received; skipping email send.")
-        return
+        raise RuntimeError("Empty report received; skipping email send")
 
     today_str = datetime.date.today().strftime("%d. %m. %Y")
     subject = f"🏃‍♂️ Training report [{today_str}]"
@@ -460,7 +502,7 @@ def main() -> None:
     if success:
         logger.info("All done: report sent.")
     else:
-        logger.error("Report was not sent.")
+        raise RuntimeError("Report was not sent")
 
 
 if __name__ == "__main__":

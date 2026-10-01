@@ -17,11 +17,11 @@ Required environment variables:
 
 Optional:
 
-- INTERVALS_ATHLETE_ID — athlete id used for Intervals.icu API. Defaults to "i510990".
+- INTERVALS_ATHLETE_ID — athlete id used for Intervals.icu API.
 - INTERVALS_USE_BASIC_AUTH — when set (to any value), the agent will use HTTP basic auth (requests' auth=(user,pass)) instead of the Authorization: Bearer header.
-- TRAINING_GOAL — the goal assessed by the report. Defaults to "Run a marathon in under 3:00".
+- TRAINING_GOAL — the goal assessed by the report. Leave empty if no goal is configured.
 
-The GitHub Actions workflow runs every morning at 05:30 UTC. Wellness is
+The GitHub Actions workflow runs every morning at 01:23 UTC. Wellness is
 selected per metric: a value from the evaluation date is preferred, and a
 missing value falls back to the previous date. The report includes the source
 date for every selected metric, so previous-day resting heart rate is not
@@ -35,9 +35,13 @@ Run locally
 
     pip install -r requirements.txt
 
-2. Set required environment variables.
+2. Create a local environment file:
 
-3. Run the agent:
+    cp .env.example .env
+
+3. Fill in the credentials in `.env`. The file is ignored by Git.
+
+4. Run the agent:
 
     python agent.py
 

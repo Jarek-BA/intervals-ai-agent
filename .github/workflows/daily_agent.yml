@@ -2,13 +2,14 @@ name: Daily Training Agent
 
 on:
   schedule:
-    # Runs at 03:21 UTC: 05:21 Swiss summer time and 04:21 winter time.
-   - cron: '23 1 * * *'
+    # Runs daily at 01:23 UTC.
+    - cron: '23 1 * * *'
   workflow_dispatch: # Allow manual runs for testing.
 
 jobs:
   run-agent:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4

@@ -1,3 +1,4 @@
-requests
-google-genai
-markdown
+requests==2.34.2
+google-genai==2.22.0
+markdown==3.10.3
+python-dotenv==1.2.3
